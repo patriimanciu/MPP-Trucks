@@ -38,25 +38,20 @@ const AddDriver = () => {
             return;
         }
     
-        // Collect all existing IDs from both id and _id fields
         const existingIds = driverData.map(driver => {
-            // Check both id and _id fields
             if (driver.id !== undefined) return driver.id;
             if (driver._id !== undefined) return driver._id;
             return 0;
         });
     
-        // Generate a new ID that's definitely unique
-        // Add 1 to the maximum ID found
         const newId = Math.max(...existingIds, 0) + 1;
         
         console.log("Existing IDs:", existingIds);
         console.log("Generated new ID:", newId);
-        
-        // Use consistent ID format - match what your context expects
+
         const driverToAdd = {
             ...newDriver,
-            id: newId, // Use id for consistency with your normalized approach
+            id: newId,
         };
     
         if (typeof setDrivers === 'function') {
@@ -159,6 +154,8 @@ const AddDriver = () => {
                                     type="date"
                                     value={newDriver.dateOfHiring} 
                                     onChange={(e) => setNewDriver({ ...newDriver, dateOfHiring: e.target.value })} 
+                                    max={new Date().toISOString().split('T')[0]}
+                                    min={new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0]}
                                     className='w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500' 
                                 />
                                 {errors.dateOfHiring && <p className='text-red-500 text-sm mt-1'>{errors.dateOfHiring}</p>}

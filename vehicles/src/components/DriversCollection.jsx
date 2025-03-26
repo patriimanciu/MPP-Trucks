@@ -37,10 +37,9 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         setCurrentPage(1);
     };
 
-    // In DriversCollection.jsx
     const handleAddClick = () => {
         if (onAdd) {
-        onAdd(); // This will call the navigation function
+        onAdd();
         } else {
         console.log("Add new driver");
         }
@@ -49,10 +48,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
     const handleDelete = (driverId) => {
         if (window.confirm('Are you sure you want to delete this driver?')) {
             try {
-                // Try to find with both id and _id
                 let driverToDelete = driverData.find(driver => driver.id === driverId);
-                
-                // If not found with id, try with _id
                 if (!driverToDelete) {
                     driverToDelete = driverData.find(driver => driver._id === driverId);
                 }
@@ -62,8 +58,6 @@ const DriversCollection = ({ onAdd, onEdit }) => {
                     console.error('Available drivers:', driverData);
                     return;
                 }
-                
-                // FIXED LOGIC: Filter out the driver by keeping only those where neither id matches
                 const updatedDrivers = driverData.filter(driver => 
                     driver.id !== driverId && (driver._id !== driverId || driver._id === undefined)
                 );
@@ -72,8 +66,6 @@ const DriversCollection = ({ onAdd, onEdit }) => {
                 setAllDrivers(updatedDrivers);
                 
                 toast.success(`${driverToDelete.name} ${driverToDelete.surname} was deleted successfully`);
-                
-                // Adjust pagination if needed
                 const newTotalPages = Math.ceil(updatedDrivers.length / itemsPerPage);
                 if (currentPage > newTotalPages && newTotalPages > 0) {
                     setCurrentPage(newTotalPages);

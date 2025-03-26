@@ -46,20 +46,16 @@ const Vehicles = () => {
         setLocation(prev=> [...prev, e.target.value]);
     }
 
-        // First, initialize vehicles from vehicleData
     useEffect(() => {
       if (vehicleData) {
-        setFilterVehicles(vehicleData); // Store the original data
-        setAllVehicles(vehicleData);    // Set the displayed data
+        setFilterVehicles(vehicleData);
+        setAllVehicles(vehicleData);
       }
     }, [vehicleData]);
 
-    // Combined filter and sort function
     const applyFilterAndSort = () => {
-      // Start with original data
       let processedVehicles = [...filterVehicles];
       
-      // Apply filters
       if (status.length > 0) {
         processedVehicles = processedVehicles.filter(vehicle => status.includes(vehicle.status));
       }
@@ -68,7 +64,6 @@ const Vehicles = () => {
         processedVehicles = processedVehicles.filter(vehicle => location.includes(vehicle.location));
       }
       
-      // Apply sorting
       switch (sortType) {
         case 'high-low':
           processedVehicles.sort((a, b) => b.capacity - a.capacity);
@@ -83,16 +78,13 @@ const Vehicles = () => {
           processedVehicles.sort((a, b) => a.year - b.year);
           break;
         default:
-          // No sorting
           break;
       }
       
-      // Update displayed vehicles and reset to first page
       setAllVehicles(processedVehicles);
       setCurrentPage(1);
     }
 
-    // Apply filtering and sorting when any relevant state changes
     useEffect(() => {
       applyFilterAndSort();
     // eslint-disable-next-line react-hooks/exhaustive-deps

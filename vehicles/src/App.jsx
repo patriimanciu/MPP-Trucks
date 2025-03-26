@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import Navbar from './components/Navbar'
 import Header from './components/Header'
 import {Routes, Route} from 'react-router-dom'
@@ -10,15 +10,6 @@ import EditDriver from './pages/EditDriver'
 import {Toaster} from 'react-hot-toast'
 
 const App = () => {
-  useEffect(() => {
-    const storedData = localStorage.getItem('driverData');
-    if (storedData) {
-      const parsedData = JSON.parse(storedData);
-      console.log('Drivers in localStorage:', parsedData);
-    } else {
-      console.log('No driver data in localStorage');
-    }
-  }, []);
   return (
     <div className='px-4 sm:px-6 md:px-8 lg:px-12 xl:px-20 2xl:px-32'>
       <Navbar />
