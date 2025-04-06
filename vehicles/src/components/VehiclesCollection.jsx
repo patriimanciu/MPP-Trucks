@@ -29,7 +29,6 @@ const VehiclesCollection = () => {
       setCurrentPage(1); 
   };
 
-
     console.log("Vehicle data in context:", vehicleData);
     console.log("All vehicles state:", allVehicles);
 
@@ -75,6 +74,7 @@ const VehiclesCollection = () => {
                     status={item.status}
                     location={item.location}
                     assignedTo={item.assignedTo}
+                    borderColor = {item.borderColor}
                   />))
           }
         </div>

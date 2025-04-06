@@ -11,7 +11,9 @@ const AddDriver = () => {
         surname: '',
         phone: '',
         image: '',
+        dateOfBirth: '',
         dateOfHiring: '',
+        address: '',
         assigned: 'Free'
     });
 
@@ -89,8 +91,9 @@ const AddDriver = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Name */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                                 <input 
+                                    id="firstName"
                                     type="text"
                                     value={newDriver.name} 
                                     onChange={(e) => setNewDriver({ ...newDriver, name: e.target.value })} 
@@ -102,8 +105,9 @@ const AddDriver = () => {
 
                             {/* Surname */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
                                 <input 
+                                    id="lastName"
                                     type="text"
                                     value={newDriver.surname} 
                                     onChange={(e) => setNewDriver({ ...newDriver, surname: e.target.value })} 
@@ -113,10 +117,25 @@ const AddDriver = () => {
                                 {errors.surname && <p className='text-red-500 text-sm mt-1'>{errors.surname}</p>}
                             </div>
 
+                            {/* Date of Birth */}
+                            <div>
+                                <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                                <input 
+                                    id="dateOfBirth"
+                                    type="date"
+                                    value={newDriver.dateOfBirth} 
+                                    onChange={(e) => setNewDriver({ ...newDriver, dateOfBirth: e.target.value })} 
+                                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                                    className='w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500' 
+                                />
+                                {errors.dateOfBirth && <p className='text-red-500 text-sm mt-1'>{errors.dateOfBirth}</p>}
+                            </div>
+
                             {/* Phone */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                                 <input 
+                                    id="phoneNumber"
                                     type="text"
                                     value={newDriver.phone} 
                                     onChange={(e) => setNewDriver({ ...newDriver, phone: e.target.value })} 
@@ -124,6 +143,20 @@ const AddDriver = () => {
                                     className='w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500' 
                                 />
                                 {errors.phone && <p className='text-red-500 text-sm mt-1'>{errors.phone}</p>}
+                            </div>
+
+                            {/* Address */}
+                            <div>
+                                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                <input 
+                                    id="address"
+                                    type="text"
+                                    value={newDriver.address} 
+                                    onChange={(e) => setNewDriver({ ...newDriver, address: e.target.value })} 
+                                    placeholder="Address" 
+                                    className='w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500' 
+                                />
+                                {errors.address && <p className='text-red-500 text-sm mt-1'>{errors.address}</p>}
                             </div>
 
                             {/* Driver Image */}
@@ -140,6 +173,8 @@ const AddDriver = () => {
                                     )}
                                 </select>
                             </div>
+
+
                         </div>
                     </div>
 

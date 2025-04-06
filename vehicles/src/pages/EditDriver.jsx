@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 
 const EditDriver = () => {
     const navigate = useNavigate();
-    const { id } = useParams(); // Get the driver ID from the URL - renamed from _id to id
+    const { id } = useParams();
     const { driverData, setDrivers } = useContext(DriversContext);
     
     const [driverToEdit, setDriverToEdit] = useState({
@@ -13,35 +13,31 @@ const EditDriver = () => {
         surname: '',
         phone: '',
         image: '',
+        dateOfBirth: '',
         dateOfHiring: '',
+        address: '',
         assigned: 'Free'
     });
 
     const [errors, setErrors] = useState({});
 
-    // Find the driver to edit when component loads
     useEffect(() => {
         try {
-            // Convert to number if it's a string
             const driverId = parseInt(id);
             
             console.log("Looking for driver with ID:", driverId);
             console.log("Available drivers:", driverData);
-            
-            // Try to find by id first
             let foundDriver = driverData.find(driver => driver.id === driverId);
-            
-            // If not found with id, try with _id as fallback
+        
             if (!foundDriver) {
                 foundDriver = driverData.find(driver => driver._id === driverId);
             }
             
             if (foundDriver) {
                 console.log("Found driver:", foundDriver);
-                // Ensure the driver has consistent id
                 const normalizedDriver = {
                     ...foundDriver,
-                    id: driverId // Ensure id is set to what we searched for
+                    id: driverId
                 };
                 setDriverToEdit(normalizedDriver);
             } else {
@@ -67,6 +63,9 @@ const EditDriver = () => {
         if (!driver.name || driver.name.length < 2) errors.name = 'Name is required (min 2 characters)';
         if (!driver.surname || driver.surname.length < 2) errors.surname = 'Surname is required (min 2 characters)';
         if (!driver.phone || !/^\d{10}$/.test(driver.phone)) errors.phone = 'Valid phone number is required (10 digits)';
+        if (!driver.dateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(driver.dateOfBirth))
+            errors.dateOfBirth = 'Valid date of birth is required (YYYY-MM-DD)';
+        if (!driver.address || driver.address.length < 5) errors.address = 'Address is required (min 5 characters)';
         if (!driver.dateOfHiring || !/^\d{4}-\d{2}-\d{2}$/.test(driver.dateOfHiring)) 
             errors.dateOfHiring = 'Valid date is required (YYYY-MM-DD)';
         return errors;
@@ -148,6 +147,22 @@ const EditDriver = () => {
                                 {errors.surname && <p className='text-red-500 text-sm mt-1'>{errors.surname}</p>}
                             </div>
 
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                                <input
+                                    type="date"
+                                    value={driverToEdit.dateOfBirth}
+                                    onChange={(e) =>
+                                        setDriverToEdit({ ...driverToEdit, dateOfBirth: e.target.value })
+                                    }
+                                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                                    className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                {errors.dateOfBirth && (
+                                    <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth}</p>
+                                )}
+                            </div>
+
                             {/* Phone */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
@@ -159,6 +174,22 @@ const EditDriver = () => {
                                     className='w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500' 
                                 />
                                 {errors.phone && <p className='text-red-500 text-sm mt-1'>{errors.phone}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                <input
+                                    type="text"
+                                    value={driverToEdit.address}
+                                    onChange={(e) =>
+                                        setDriverToEdit({ ...driverToEdit, address: e.target.value })
+                                    }
+                                    placeholder="Address"
+                                    className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                {errors.address && (
+                                    <p className="text-red-500 text-sm mt-1">{errors.address}</p>
+                                )}
                             </div>
 
                             {/* Driver Image */}

@@ -11,9 +11,14 @@ const VehicleItem = ({plate, brand, model, status, location, assignedTo, image, 
     }
   };
 
+  const getBorderColor = (capacity) => {
+    if (capacity < 1025) return 'border-red-500';
+    if (capacity <= 1075) return 'border-yellow-500';
+    return 'border-green-500';
+  };
+
   return (
-    <Link className='text-gray-700 cursor-pointer block border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all p-4 bg-white hover:border-gray-300' to={`/vehicle/${plate}`}>
-        <h3 className='font-medium text-lg text-gray-800 text-right'>{plate}</h3>
+    <Link className={`border-2 p-4 rounded ${getBorderColor(capacity)}`} to={`/vehicle/${plate}`}>        <h3 className='font-medium text-lg text-gray-800 text-right'>{plate}</h3>
         <div className='overflow-hidden'>
             <img className='hover:scale-110 transition ease-in-out' src={image[0]}></img>
         </div>

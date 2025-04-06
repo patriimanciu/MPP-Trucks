@@ -3,6 +3,20 @@ import { useContext, useState, useEffect } from 'react'
 import { DriversContext } from '../context/DriversContext'
 import Title from './Title'
 import { toast } from 'react-hot-toast'
+import { Pie, Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  LineElement,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+} from 'chart.js';
+
+// Register the required chart components
+ChartJS.register(ArcElement, Tooltip, Legend, LineElement, CategoryScale, LinearScale, PointElement);
 
 const DriversCollection = ({ onAdd, onEdit }) => {
     const getStatusColor = (status) => {
@@ -18,9 +32,48 @@ const DriversCollection = ({ onAdd, onEdit }) => {
     
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    const [statusChartData, setStatusChartData] = useState({
+        labels: [],
+        datasets: [
+          {
+            label: 'Driver Status',
+            data: [],
+            backgroundColor: [],
+          },
+        ],
+      });
+      
+      const [driversOverTimeData, setDriversOverTimeData] = useState({
+        labels: [],
+        datasets: [
+          {
+            label: 'Drivers Added Over Time',
+            data: [],
+            borderColor: '#FF9800',
+            fill: false,
+          },
+        ],
+      });
+
+      const [ageGroupChartData, setAgeGroupChartData] = useState({
+        labels: ['<25', '26-44', '45+'],
+        datasets: [
+          {
+            label: 'Age Groups',
+            data: [0, 0, 0],
+            backgroundColor: ['#4CAF50', '#FFC107', '#F44336'],
+          },
+        ],
+      });
+
     
     useEffect(() => {
+        console.log("Driver data in context:", driverData);
         setAllDrivers(driverData);
+        generateStatusChartData(driverData);
+        generateDriversOverTimeData(driverData);
+        generateAgeGroupChartData(driverData);
     }, [driverData])
     
     const indexOfLastDriver = currentPage * itemsPerPage;
@@ -76,6 +129,112 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         }
     };
 
+    const generateStatusChartData = (drivers) => {
+        const freeDrivers = drivers.filter((driver) => driver.assigned === 'Free').length;
+        const assignedDrivers = drivers.filter((driver) => driver.assigned === 'Assigned').length;
+        const onLeaveDrivers = drivers.filter((driver) => driver.assigned === 'On Leave').length;
+    
+        setStatusChartData({
+          labels: ['Free', 'Assigned', 'On Leave'],
+          datasets: [
+            {
+              label: 'Driver Status',
+              data: [freeDrivers, assignedDrivers, onLeaveDrivers],
+              backgroundColor: ['#4CAF50', '#F44336', '#FF9800'],
+              hoverBackgroundColor: ['#45a049', '#e53935', '#fb8c00'],
+            },
+          ],
+        });
+      };
+
+      const generateDriversOverTimeData = (drivers) => {
+        if (!drivers || drivers.length === 0) {
+          setDriversOverTimeData({
+            labels: [],
+            datasets: [
+              {
+                label: 'Drivers Added Over Time',
+                data: [],
+                borderColor: '#FF9800',
+                fill: false,
+              },
+            ],
+          });
+          return;
+        }
+      
+        const groupedByYear = drivers.reduce((acc, driver) => {
+          const year = driver.dateOfHiring ? new Date(driver.dateOfHiring).getFullYear() : 'Unknown';
+          acc[year] = (acc[year] || 0) + 1;
+          return acc;
+        }, {});
+
+        const years = Object.keys(groupedByYear).map(Number).filter(year => !isNaN(year));
+        const minYear = Math.min(...years);
+        const maxYear = Math.max(...years);
+        const allYears = Array.from({ length: maxYear - minYear + 1 }, (_, i) => (minYear + i).toString());
+      
+        const labels = allYears.map((year) => year.toString());
+        const data = labels.map((year) => groupedByYear[year] || 0);
+      
+        setDriversOverTimeData({
+          labels,
+          datasets: [
+            {
+              label: 'Drivers Added Over Time',
+              data,
+              borderColor: '#FF9800',
+              fill: false,
+            },
+          ],
+        });
+      };
+
+      const generateAgeGroupChartData = (drivers) => {
+        if (!drivers || drivers.length === 0) {
+          setAgeGroupChartData({
+            labels: ['<25', '26-44', '45+'],
+            datasets: [
+              {
+                label: 'Age Groups',
+                data: [0, 0, 0],
+                backgroundColor: ['#4CAF50', '#FFC107', '#F44336'],
+              },
+            ],
+          });
+          return;
+        }
+      
+        const currentYear = new Date().getFullYear();
+      
+        // Group employees by age categories
+        const ageGroups = drivers.reduce(
+          (acc, driver) => {
+            const birthYear = driver.dateOfBirth ? new Date(driver.dateOfBirth).getFullYear() : null;
+            if (birthYear) {
+              const age = currentYear - birthYear;
+              if (age < 25) acc['<25'] += 1;
+              else if (age >= 25 && age <= 44) acc['26-44'] += 1;
+              else acc['45+'] += 1;
+            }
+            return acc;
+          },
+          { '<25': 0, '26-44': 0, '45+': 0 }
+        );
+      
+        // Update the chart data
+        setAgeGroupChartData({
+          labels: ['<25', '26-44', '45+'],
+          datasets: [
+            {
+              label: 'Age Groups',
+              data: [ageGroups['<25'], ageGroups['26-44'], ageGroups['45+']],
+              backgroundColor: ['#4CAF50', '#FFC107', '#F44336'],
+            },
+          ],
+        });
+      };
+
     if (!allDrivers || !Array.isArray(allDrivers)) {
         return <div>Loading drivers data...</div>
     }
@@ -85,6 +244,31 @@ const DriversCollection = ({ onAdd, onEdit }) => {
             <div className='text-center py-4 text-3xl'>
                 <Title text={'Drivers'}/>
             </div>
+
+            {/* Charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+                {/* Driver Status Distribution */}
+                <div className="bg-white shadow-md rounded-lg p-4">
+                    <h3 className="text-lg font-semibold mb-4">Driver Status Distribution</h3>
+                    <Pie data={statusChartData} />
+                </div>
+                
+                {/* Drivers Added Over Time */}
+                <div className="bg-white shadow-md rounded-lg p-4">
+                    <h3 className="text-lg font-semibold mb-4">Drivers Added Over Time</h3>
+                    <Line data={driversOverTimeData} />
+                </div>
+
+                <div className="bg-white shadow-md rounded-lg p-4">
+                    <h3 className="text-lg font-semibold mb-4">Employee Age Groups</h3>
+                    {ageGroupChartData.datasets[0].data.length > 0 ? (
+                        <Pie data={ageGroupChartData} />
+                    ) : (
+                        <p className="text-gray-500">No data available for this chart.</p>
+                    )}
+                </div>
+            </div>
+
 
             {/* Add Button */}
             <div className="flex justify-end mb-6">
