@@ -1,5 +1,5 @@
-import { createContext, useState } from "react";
-import { driverData as initialDriverData, vehicleData } from "../assets/assets";
+import { createContext, useState, useEffect } from "react";
+import { vehicleData } from "../../../backend/data/vehicles.js";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const DriversContext = createContext();
@@ -25,13 +25,36 @@ const normalizeDriver = (driver) => {
 };
 
 const DriversContextProvider = (props) => {
-    const [driverData, setDriverData] = useState(() => {
-        return initialDriverData.map(normalizeDriver);
-    });
-    
-    const resetDriverData = () => {
-        setDriverData(initialDriverData.map(normalizeDriver));
-    };
+    const [driverData, setDriverData] = useState([]);
+    useEffect(() => {
+        const fetchDrivers = async () => {
+            try {
+                const response = await fetch('http://localhost:5001/api/drivers'); // Replace with your backend endpoint
+                if (!response.ok) {
+                    throw new Error('Failed to fetch drivers');
+                }
+                const data = await response.json();
+                setDriverData(data.map(normalizeDriver)); // Normalize the data if needed
+            } catch (error) {
+                console.error('Error fetching drivers:', error);
+            }
+        };
+
+        fetchDrivers();
+    }, []);
+
+    const resetDriverData = async () => {
+      try {
+          const response = await fetch('http://localhost:5001/api/drivers');
+          if (!response.ok) {
+              throw new Error('Failed to reset drivers');
+          }
+          const data = await response.json();
+          setDriverData(data.map(normalizeDriver));
+      } catch (error) {
+          console.error('Error resetting drivers:', error);
+      }
+  };
     
     const value = {
         driverData,

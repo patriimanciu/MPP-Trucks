@@ -7,4 +7,10 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
   },
+  assetsInclude: ['**/*.svg', '**/*.jpg'],
+  server: {
+    proxy: {
+      '/api': 'http://localhost:5001',
+    },
+  },
 });
