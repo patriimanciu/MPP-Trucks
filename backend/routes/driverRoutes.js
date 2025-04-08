@@ -80,8 +80,8 @@ router.delete('/:id', (req, res) => {
   if (index === -1) {
     return res.status(404).json({ message: 'Driver not found' });
   }
-  const deletedDriver = driverData.splice(index, 1);
-  res.json(deletedDriver);
+  const deletedDriver = driverData.splice(index, 1)[0];
+  res.status(200).json(deletedDriver); 
 });
 
 export default router;
