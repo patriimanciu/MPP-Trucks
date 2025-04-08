@@ -15,7 +15,6 @@ import {
   PointElement,
 } from 'chart.js';
 
-// Register the required chart components
 ChartJS.register(ArcElement, Tooltip, Legend, LineElement, CategoryScale, LinearScale, PointElement);
 
 const DriversCollection = ({ onAdd, onEdit }) => {
@@ -27,7 +26,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         }
       };
 
-    const { driverData, setDrivers } = useContext(DriversContext);
+    const { setDrivers } = useContext(DriversContext);
     const [allDrivers, setAllDrivers] = useState([]);
     
     const [currentPage, setCurrentPage] = useState(1);
@@ -67,14 +66,31 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         ],
       });
 
+      useEffect(() => {
+        const fetchDrivers = async () => {
+          try {
+            const response = await fetch('/api/drivers');
+            if (!response.ok) {
+              throw new Error('Failed to fetch drivers');
+            }
+            const data = await response.json();
+            setAllDrivers(data);
+          } catch (error) {
+            console.error('Error fetching drivers:', error);
+            toast.error('Failed to fetch drivers');
+          }
+        };
+      
+        fetchDrivers();
+      }, []);
     
-    useEffect(() => {
-        console.log("Driver data in context:", driverData);
-        setAllDrivers(driverData);
-        generateStatusChartData(driverData);
-        generateDriversOverTimeData(driverData);
-        generateAgeGroupChartData(driverData);
-    }, [driverData])
+      useEffect(() => {
+        if (allDrivers.length > 0) {
+          generateStatusChartData(allDrivers);
+          generateDriversOverTimeData(allDrivers);
+          generateAgeGroupChartData(allDrivers);
+        }
+      }, [allDrivers]);
     
     const indexOfLastDriver = currentPage * itemsPerPage;
     const indexOfFirstDriver = indexOfLastDriver - itemsPerPage;
@@ -98,35 +114,32 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         }
     };
 
-    const handleDelete = (driverId) => {
-        if (window.confirm('Are you sure you want to delete this driver?')) {
-            try {
-                let driverToDelete = driverData.find(driver => driver.id === driverId);
-                if (!driverToDelete) {
-                    driverToDelete = driverData.find(driver => driver._id === driverId);
-                }
-                
-                if (!driverToDelete) {
-                    toast.error(`Driver with ID ${driverId} not found.`);
-                    console.error('Available drivers:', driverData);
-                    return;
-                }
-                const updatedDrivers = driverData.filter(driver => 
-                    driver.id !== driverId && (driver._id !== driverId || driver._id === undefined)
-                );
-                
-                setDrivers(updatedDrivers);
-                setAllDrivers(updatedDrivers);
-                
-                toast.success(`${driverToDelete.name} ${driverToDelete.surname} was deleted successfully`);
-                const newTotalPages = Math.ceil(updatedDrivers.length / itemsPerPage);
-                if (currentPage > newTotalPages && newTotalPages > 0) {
-                    setCurrentPage(newTotalPages);
-                }
-            } catch (error) {
-                toast.error("Failed to delete driver: " + error.message);
-            }
+    const handleDelete = async (driverId) => {
+      const driverToDelete = allDrivers.find((driver) => driver._id === driverId);
+
+      if (window.confirm('Are you sure you want to delete this driver?')) {
+        try {
+          const response = await fetch(`/api/drivers/${driverId}`, {
+            method: 'DELETE',
+          });
+          if (!response.ok) {
+            throw new Error('Failed to delete driver');
+          }
+          toast.success(`${driverToDelete.name} ${driverToDelete.surname} was deleted successfully`);
+    
+          const updatedDrivers = allDrivers.filter(driver => driver._id !== driverId);
+          setDrivers(updatedDrivers);
+          setAllDrivers(updatedDrivers);
+    
+          const newTotalPages = Math.ceil(updatedDrivers.length / itemsPerPage);
+          if (currentPage > newTotalPages && newTotalPages > 0) {
+            setCurrentPage(newTotalPages);
+          }
+        } catch (error) {
+          console.error('Error deleting driver:', error);
+          toast.error('Failed to delete driver');
         }
+      }
     };
 
     const generateStatusChartData = (drivers) => {
@@ -207,7 +220,6 @@ const DriversCollection = ({ onAdd, onEdit }) => {
       
         const currentYear = new Date().getFullYear();
       
-        // Group employees by age categories
         const ageGroups = drivers.reduce(
           (acc, driver) => {
             const birthYear = driver.dateOfBirth ? new Date(driver.dateOfBirth).getFullYear() : null;
@@ -222,7 +234,6 @@ const DriversCollection = ({ onAdd, onEdit }) => {
           { '<25': 0, '26-44': 0, '45+': 0 }
         );
       
-        // Update the chart data
         setAgeGroupChartData({
           labels: ['<25', '26-44', '45+'],
           datasets: [
@@ -259,6 +270,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
                     <Line data={driversOverTimeData} />
                 </div>
 
+                {/* Age Group Distribution */}
                 <div className="bg-white shadow-md rounded-lg p-4">
                     <h3 className="text-lg font-semibold mb-4">Employee Age Groups</h3>
                     {ageGroupChartData.datasets[0].data.length > 0 ? (
@@ -352,13 +364,13 @@ const DriversCollection = ({ onAdd, onEdit }) => {
                                 
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <button 
-                                        onClick={() => onEdit(driver.id)}
+                                        onClick={() => onEdit(driver._id)}
                                         className="bg-indigo-100 text-indigo-600 hover:bg-indigo-200 px-3 py-1 rounded-md mr-2"
                                     >
                                         Edit
                                     </button>
                                     <button 
-                                        onClick={() => handleDelete(driver.id)}
+                                        onClick={() => handleDelete(driver._id)}
                                         className="bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1 rounded-md"
                                     >
                                         Delete

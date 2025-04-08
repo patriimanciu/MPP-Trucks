@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 
 const AddDriver = () => {
     const navigate = useNavigate();
-    const { driverData, setDrivers } = useContext(DriversContext);
+    const { setDrivers } = useContext(DriversContext);
     const [newDriver, setNewDriver] = useState({
         name: '',
         surname: '',
@@ -33,38 +33,32 @@ const AddDriver = () => {
         return errors;
     }
 
-    const handleAdd = () => {
-        const validation = validateDriver(newDriver);
-        if (Object.keys(validation).length > 0) {
-            setErrors(validation);
+    const handleAddDriver = async () => {
+        const validationErrors = validateDriver(newDriver);
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors);
             return;
         }
-    
-        const existingIds = driverData.map(driver => {
-            if (driver.id !== undefined) return driver.id;
-            if (driver._id !== undefined) return driver._id;
-            return 0;
-        });
-    
-        const newId = Math.max(...existingIds, 0) + 1;
-        
-        console.log("Existing IDs:", existingIds);
-        console.log("Generated new ID:", newId);
 
-        const driverToAdd = {
-            ...newDriver,
-            id: newId,
-        };
-    
-        if (typeof setDrivers === 'function') {
-            setDrivers([...driverData, driverToAdd]);
-            toast.success('Driver added successfully');
-            
-            setTimeout(() => {
-                navigate('/drivers');
-            }, 1500);
-        } else {
-            toast.error('Could not add driver.');
+        try {
+            const response = await fetch('/api/drivers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newDriver),
+            });
+
+            if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to add driver');
+            }
+
+            const addedDriver = await response.json();
+            setDrivers((prevDrivers) => [...prevDrivers, addedDriver]); 
+            toast.success(`${addedDriver.name} ${addedDriver.surname} was added successfully`);
+            navigate('/drivers');
+        } catch (error) {
+            console.error('Error adding driver:', error);
+            toast.error(error.message || 'Failed to add driver');
         }
     };
 
@@ -221,7 +215,7 @@ const AddDriver = () => {
                         Cancel
                     </button>
                     <button 
-                        onClick={handleAdd} 
+                        onClick={handleAddDriver} 
                         className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
                         Add Driver

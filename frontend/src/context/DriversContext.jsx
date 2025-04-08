@@ -29,12 +29,12 @@ const DriversContextProvider = (props) => {
     useEffect(() => {
         const fetchDrivers = async () => {
             try {
-                const response = await fetch('http://localhost:5001/api/drivers'); // Replace with your backend endpoint
+                const response = await fetch('http://localhost:5001/api/drivers');
                 if (!response.ok) {
                     throw new Error('Failed to fetch drivers');
                 }
                 const data = await response.json();
-                setDriverData(data.map(normalizeDriver)); // Normalize the data if needed
+                setDriverData(data.map(normalizeDriver));
             } catch (error) {
                 console.error('Error fetching drivers:', error);
             }

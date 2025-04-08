@@ -1,5 +1,3 @@
-import { volvo } from './cars/volvo.jpg';
-
 export const vehicleData = [
     {
         _id: 1,

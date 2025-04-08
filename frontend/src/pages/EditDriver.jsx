@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 const EditDriver = () => {
     const navigate = useNavigate();
     const { id } = useParams();
-    const { driverData, setDrivers } = useContext(DriversContext);
+    const { setDrivers } = useContext(DriversContext);
     
     const [driverToEdit, setDriverToEdit] = useState({
         name: '',
@@ -22,37 +22,24 @@ const EditDriver = () => {
     const [errors, setErrors] = useState({});
 
     useEffect(() => {
-        try {
-            const driverId = parseInt(id);
-            
-            console.log("Looking for driver with ID:", driverId);
-            console.log("Available drivers:", driverData);
-            let foundDriver = driverData.find(driver => driver.id === driverId);
-        
-            if (!foundDriver) {
-                foundDriver = driverData.find(driver => driver._id === driverId);
+        console.log('Fetching driver with ID:', id);
+        const fetchDriver = async () => {
+          try {
+            const response = await fetch(`/api/drivers/${id}`);
+            if (!response.ok) {
+              throw new Error('Driver not found');
             }
-            
-            if (foundDriver) {
-                console.log("Found driver:", foundDriver);
-                const normalizedDriver = {
-                    ...foundDriver,
-                    id: driverId
-                };
-                setDriverToEdit(normalizedDriver);
-            } else {
-                console.error("Driver not found. Available drivers:", driverData);
-                toast.error(`Driver with ID ${driverId} not found`);
-                setTimeout(() => {
-                    navigate('/drivers');
-                }, 1500);
-            }
-        } catch (error) {
-            console.error("Error in EditDriver:", error);
-            toast.error(`Error finding driver: ${error.message}`);
+            const driver = await response.json();
+            setDriverToEdit(driver);
+          } catch (error) {
+            console.error('Error fetching driver:', error);
+            toast.error('Driver not found');
             navigate('/drivers');
-        }
-    }, [id, driverData, navigate]);
+          }
+        };
+      
+        fetchDriver();
+      }, [id, navigate]);
 
     const imageOptions = [
         { value: '', label: 'No Image' }
@@ -71,34 +58,40 @@ const EditDriver = () => {
         return errors;
     }
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const validation = validateDriver(driverToEdit);
         if (Object.keys(validation).length > 0) {
-            setErrors(validation);
-            return;
+          setErrors(validation);
+          return;
         }
+      
+        try {
+          const response = await fetch(`/api/drivers/${driverToEdit.id || driverToEdit._id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(driverToEdit),
+          });
+      
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to update driver');
+          }
+      
+          const updatedDriver = await response.json();
 
-        if (typeof setDrivers === 'function') {
-            // Map through all drivers and replace the one being edited
-            // Use both id and _id for comparison to be safe
-            const updatedDrivers = driverData.map(driver => {
-                if (driver.id === driverToEdit.id || 
-                    (driver._id && driver._id === driverToEdit.id)) {
-                    return driverToEdit;
-                }
-                return driver;
-            });
-            
-            setDrivers(updatedDrivers);
-            toast.success('Driver updated successfully');
-            
-            setTimeout(() => {
-                navigate('/drivers');
-            }, 1500);
-        } else {
-            toast.error('Could not update driver. Update function not available.');
+          setDrivers((prevDrivers) =>
+            prevDrivers.map((driver) =>
+              driver.id === updatedDriver.id || driver._id === updatedDriver._id ? updatedDriver : driver
+            )
+          );
+      
+          toast.success('Driver updated successfully');
+          navigate('/drivers');
+        } catch (error) {
+          console.error('Error updating driver:', error);
+          toast.error(error.message || 'Failed to update driver');
         }
-    };
+      };
 
     const handleBack = () => {
         navigate('/drivers');

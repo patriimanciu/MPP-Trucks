@@ -12,18 +12,14 @@ import vehicleRoutes from './routes/vehicleRoutes.js';
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-
 app.use('/assets', express.static(path.join(__dirname, '../../frontend/public/assets')));
 
-// Middleware
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// Routes
 app.use('/api/drivers', driverRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 
-// Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
