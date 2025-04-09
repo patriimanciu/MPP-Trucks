@@ -5,12 +5,14 @@ import VehicleItem from '../components/VehicleItem';
 const Vehicles = () => {
   const [allVehicles, setAllVehicles] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(8);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [status, setStatus] = useState([]);
   const [location, setLocation] = useState([]);
-  const [sortType, setSortType] = useState('default');
+  const [sortField, setSortField] = useState('id');
+  const [sortOrder, setSortOrder] = useState('asc');
   const [totalPages, setTotalPages] = useState(1);
 
+  // Toggle status filte
   const toggleStatus = (e) => {
     if (status.includes(e.target.value)) {
       setStatus((prev) => prev.filter((item) => item !== e.target.value));
@@ -31,18 +33,19 @@ const Vehicles = () => {
     const fetchVehicles = async () => {
       try {
         const queryParams = new URLSearchParams({
-          status: status.join(','), 
+          status: status.join(','),
           location: location.join(','),
-          sort: sortType,
+          sortField,
+          sortOrder,
           page: currentPage,
           limit: itemsPerPage,
         });
-
+  
         const response = await fetch(`/api/vehicles?${queryParams.toString()}`);
         if (!response.ok) {
           throw new Error('Failed to fetch vehicles');
         }
-
+  
         const data = await response.json();
         setAllVehicles(data.vehicles);
         setTotalPages(Math.ceil(data.total / itemsPerPage));
@@ -50,9 +53,9 @@ const Vehicles = () => {
         console.error('Error fetching vehicles:', error);
       }
     };
-
+  
     fetchVehicles();
-  }, [status, location, sortType, currentPage, itemsPerPage]);
+  }, [status, location, sortField, sortOrder, currentPage, itemsPerPage]);
 
   return (
     <div className="my-10 pt-16">
@@ -100,13 +103,17 @@ const Vehicles = () => {
           <div className="flex justify-end items-center text-base mb-4 gap-4">
             <select
               className="border-2 border-gray-300 px-2 py-1 rounded-md"
-              onChange={(e) => setSortType(e.target.value)}
+              onChange={(e) => {
+                const [field, order] = e.target.value.split('-');
+                setSortField(field);
+                setSortOrder(order);
+              }}
             >
-              <option value="default">Sort by</option>
-              <option value="high-low">Sort by: High to Low</option>
-              <option value="low-high">Sort by: Low to High</option>
-              <option value="new">Sort by: Newest</option>
-              <option value="old">Sort by: Oldest</option>
+              <option value="id-asc">Sort by: Default</option>
+              <option value="capacity-desc">Sort by: Capacity (High to Low)</option>
+              <option value="capacity-asc">Sort by: Capacity (Low to High)</option>
+              <option value="year-desc">Sort by: Year (Newest)</option>
+              <option value="year-asc">Sort by: Year (Oldest)</option>
             </select>
           </div>
 
