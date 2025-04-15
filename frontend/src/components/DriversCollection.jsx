@@ -68,22 +68,45 @@ const DriversCollection = ({ onAdd, onEdit }) => {
 
       useEffect(() => {
         const fetchDrivers = async () => {
+          if (!navigator.onLine) {
+            const cachedDrivers = JSON.parse(localStorage.getItem('drivers'));
+            if (cachedDrivers) {
+              setDrivers(cachedDrivers);
+              setAllDrivers(cachedDrivers);
+              toast.success('Loaded drivers from offline cache.');
+            } else {
+              toast.error('No drivers available offline.');
+            }
+            return;
+          }
+      
           try {
             const response = await fetch('/api/drivers');
             if (!response.ok) {
               throw new Error('Failed to fetch drivers');
             }
-            const data = await response.json();
-            setAllDrivers(data);
+            const drivers = await response.json();
+            setDrivers(drivers);
+            setAllDrivers(drivers);
+      
+            localStorage.setItem('drivers', JSON.stringify(drivers));
           } catch (error) {
             console.error('Error fetching drivers:', error);
-            toast.error('Failed to fetch drivers');
+      
+            const cachedDrivers = JSON.parse(localStorage.getItem('drivers'));
+            if (cachedDrivers) {
+              setDrivers(cachedDrivers);
+              setAllDrivers(cachedDrivers);
+              toast.success('Loaded drivers from offline cache.');
+            } else {
+              toast.error('No drivers available offline.');
+            }
           }
         };
       
         fetchDrivers();
-      }, []);
-    
+      }, [setDrivers]);
+
       useEffect(() => {
         if (allDrivers.length > 0) {
           generateStatusChartData(allDrivers);
@@ -116,8 +139,27 @@ const DriversCollection = ({ onAdd, onEdit }) => {
 
     const handleDelete = async (driverId) => {
       const driverToDelete = allDrivers.find((driver) => driver._id === driverId);
-
+    
       if (window.confirm('Are you sure you want to delete this driver?')) {
+        if (!navigator.onLine) {
+          console.log('Offline. Queuing DELETE operation.');
+          const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
+          queuedOperations.push({
+            type: 'DELETE',
+            id: driverId,
+          });
+          localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
+          console.log('After queuing DELETE operation:', JSON.parse(localStorage.getItem('queuedOperations')));
+    
+          // Update local state to remove the driver
+          const updatedDrivers = allDrivers.filter((driver) => driver._id !== driverId);
+          setDrivers(updatedDrivers);
+          setAllDrivers(updatedDrivers);
+    
+          toast.success('Driver deleted locally. Changes will sync when back online.');
+          return;
+        }
+    
         try {
           const response = await fetch(`/api/drivers/${driverId}`, {
             method: 'DELETE',
@@ -125,16 +167,12 @@ const DriversCollection = ({ onAdd, onEdit }) => {
           if (!response.ok) {
             throw new Error('Failed to delete driver');
           }
+    
           toast.success(`${driverToDelete.name} ${driverToDelete.surname} was deleted successfully`);
     
-          const updatedDrivers = allDrivers.filter(driver => driver._id !== driverId);
+          const updatedDrivers = allDrivers.filter((driver) => driver._id !== driverId);
           setDrivers(updatedDrivers);
           setAllDrivers(updatedDrivers);
-    
-          const newTotalPages = Math.ceil(updatedDrivers.length / itemsPerPage);
-          if (currentPage > newTotalPages && newTotalPages > 0) {
-            setCurrentPage(newTotalPages);
-          }
         } catch (error) {
           console.error('Error deleting driver:', error);
           toast.error('Failed to delete driver');

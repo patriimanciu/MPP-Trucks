@@ -1,6 +1,6 @@
-import React, { useContext, useState } from 'react'
+import React, { useContext, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom';
-import { DriversContext } from '../context/DriversContext'
+import { DriversContext } from '../context/DriversContext';
 import toast from 'react-hot-toast';
 
 const AddDriver = () => {
@@ -14,24 +14,36 @@ const AddDriver = () => {
         dateOfBirth: '',
         dateOfHiring: '',
         address: '',
-        assigned: 'Free'
+        assigned: 'Free',
     });
 
     const [errors, setErrors] = useState({});
+    const [isServerReachable, setIsServerReachable] = useState(true);
 
-    const imageOptions = [
-        { value: '', label: 'No Image' }
-    ];
+    const imageOptions = [{ value: '', label: 'No Image' }];
+
+
+    useEffect(() => {
+        const checkServerStatus = async () => {
+            try {
+                const response = await fetch('/api/ping');
+                setIsServerReachable(response.ok);
+            } catch {
+                setIsServerReachable(false);
+            }
+        };
+        checkServerStatus();
+    }, []);
 
     const validateDriver = (driver) => {
         let errors = {};
         if (!driver.name || driver.name.length < 2) errors.name = 'Name is required (min 2 characters)';
         if (!driver.surname || driver.surname.length < 2) errors.surname = 'Surname is required (min 2 characters)';
         if (!driver.phone || !/^\d{10}$/.test(driver.phone)) errors.phone = 'Valid phone number is required (10 digits)';
-        if (!driver.dateOfHiring || !/^\d{4}-\d{2}-\d{2}$/.test(driver.dateOfHiring)) 
+        if (!driver.dateOfHiring || !/^\d{4}-\d{2}-\d{2}$/.test(driver.dateOfHiring))
             errors.dateOfHiring = 'Valid date is required (YYYY-MM-DD)';
         return errors;
-    }
+    };
 
     const handleAddDriver = async () => {
         const validationErrors = validateDriver(newDriver);
@@ -40,21 +52,42 @@ const AddDriver = () => {
             return;
         }
 
+        if (!navigator.onLine || !isServerReachable) {
+            console.log('Offline or server unreachable. Queuing operation.');
+            const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
+            console.log('Before adding:', queuedOperations);
+        
+            queuedOperations.push({
+                type: 'CREATE',
+                payload: newDriver,
+            });
+        
+            localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
+            console.log('After adding:', JSON.parse(localStorage.getItem('queuedOperations')));
+        
+            setDrivers((prevDrivers) => [...prevDrivers, newDriver]);
+        
+            toast.success(`${newDriver.name} ${newDriver.surname} was added locally. Changes will sync when back online.`);
+            navigate('/drivers');
+            return;
+        }
+
         try {
             const response = await fetch('/api/drivers', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newDriver),
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newDriver),
             });
 
             if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to add driver');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to add driver');
             }
 
             const addedDriver = await response.json();
-            setDrivers((prevDrivers) => [...prevDrivers, addedDriver]); 
-            toast.success(`${addedDriver.name} ${addedDriver.surname} was added successfully`);
+            setDrivers((prevDrivers) => [...prevDrivers, addedDriver]);
+
+            toast.success(`${addedDriver.name} ${addedDriver.surname} was added successfully.`);
             navigate('/drivers');
         } catch (error) {
             console.error('Error adding driver:', error);
@@ -62,12 +95,71 @@ const AddDriver = () => {
         }
     };
 
+    useEffect(() => {
+        const syncOperations = async () => {
+            if (navigator.onLine && isServerReachable) {
+                console.log('Syncing queued operations...');
+                let queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
+                console.log('Queued operations to sync:', queuedOperations);
+    
+                const remainingOperations = [];
+    
+                for (const operation of queuedOperations) {
+                    try {
+                        if (operation.type === 'CREATE') {
+                            console.log('Syncing operation:', operation);
+                            const response = await fetch('/api/drivers', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(operation.payload),
+                            });
+    
+                            if (!response.ok) {
+                                throw new Error('Failed to sync operation');
+                            }
+    
+                            const addedDriver = await response.json();
+                            setDrivers((prevDrivers) => [...prevDrivers, addedDriver]);
+                            console.log('Successfully synced operation:', operation);
+                        }
+                    } catch (error) {
+                        console.error('Error syncing operation:', error);
+                        // Add the failed operation back to the remaining operations
+                        remainingOperations.push(operation);
+                    }
+                }
+    
+                // Update localStorage with remaining operations
+                if (remainingOperations.length > 0) {
+                    localStorage.setItem('queuedOperations', JSON.stringify(remainingOperations));
+                    console.log('Updated queued operations in localStorage:', remainingOperations);
+                } else {
+                    localStorage.removeItem('queuedOperations'); // Clear the queue if all operations are synced
+                    console.log('Cleared queued operations from localStorage.');
+                }
+            }
+        };
+    
+        const handleOnline = () => {
+            console.log('Network is back online. Checking server status...');
+            syncOperations();
+        };
+    
+        window.addEventListener('online', handleOnline);
+    
+        return () => {
+            window.removeEventListener('online', handleOnline);
+        };
+    }, [isServerReachable, setDrivers]);
+
     const handleBack = () => {
         navigate('/drivers');
     };
 
     return (
         <div className='p-6 max-w-4xl mx-auto pt-16 my-10'>
+            {!navigator.onLine && <div className="alert alert-warning">You are offline. Changes will be saved locally.</div>}
+            {navigator.onLine && !isServerReachable && <div className="alert alert-danger">Server is unreachable. Changes will sync when the server is back online.</div>}
             <div className="flex justify-between items-center mb-6">
                 <h2 className='text-2xl font-bold'>Add New Driver</h2>
                 <button

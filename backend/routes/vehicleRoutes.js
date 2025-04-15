@@ -39,4 +39,9 @@ router.get('/', (req, res) => {
     vehicles: paginatedVehicles,
   });
 });
+
+// Add a ping endpoint
+router.get('/ping', (req, res) => {
+  res.status(200).send('pong');
+});
 export default router;

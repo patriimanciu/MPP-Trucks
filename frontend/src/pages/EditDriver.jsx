@@ -20,6 +20,19 @@ const EditDriver = () => {
     });
 
     const [errors, setErrors] = useState({});
+    const [isServerReachable, setIsServerReachable] = useState(true);
+
+    useEffect(() => {
+        const checkServerStatus = async () => {
+            try {
+                const response = await fetch('/api/ping');
+                setIsServerReachable(response.ok);
+            } catch {
+                setIsServerReachable(false);
+            }
+        };
+        checkServerStatus();
+    }, []);
 
     useEffect(() => {
         console.log('Fetching driver with ID:', id);
@@ -58,40 +71,81 @@ const EditDriver = () => {
         return errors;
     }
 
+    useEffect(() => {
+        const syncOperations = async () => {
+            if (navigator.onLine && isServerReachable) {
+                console.log('Syncing queued operations...');
+                const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
+                for (const operation of queuedOperations) {
+                    try {
+                        if (operation.type === 'UPDATE') {
+                            await fetch(`/api/drivers/${operation.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(operation.payload),
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error syncing operation:', error);
+                    }
+                }
+                localStorage.removeItem('queuedOperations'); // Clear the queue after syncing
+            }
+        };
+    
+        syncOperations();
+    }, [isServerReachable]);
+
     const handleSave = async () => {
         const validation = validateDriver(driverToEdit);
         if (Object.keys(validation).length > 0) {
-          setErrors(validation);
-          return;
+            setErrors(validation);
+            return;
         }
-      
+    
+        if (!navigator.onLine || !isServerReachable) {
+            console.log('Offline or server unreachable. Queuing operation.');
+            const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
+            queuedOperations.push({
+                type: 'UPDATE',
+                id: driverToEdit.id || driverToEdit._id,
+                payload: driverToEdit,
+            });
+            localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
+    
+            toast.success('Changes saved locally. They will sync when back online.');
+            navigate('/drivers');
+            return; 
+        }
+    
         try {
-          const response = await fetch(`/api/drivers/${driverToEdit.id || driverToEdit._id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(driverToEdit),
-          });
-      
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to update driver');
-          }
-      
-          const updatedDriver = await response.json();
-
-          setDrivers((prevDrivers) =>
-            prevDrivers.map((driver) =>
-              driver.id === updatedDriver.id || driver._id === updatedDriver._id ? updatedDriver : driver
-            )
-          );
-      
-          toast.success('Driver updated successfully');
-          navigate('/drivers');
+            console.log('Online and server reachable. Proceeding with API call.');
+            const response = await fetch(`/api/drivers/${driverToEdit.id || driverToEdit._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(driverToEdit),
+            });
+    
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to update driver');
+            }
+    
+            const updatedDriver = await response.json();
+    
+            setDrivers((prevDrivers) =>
+                prevDrivers.map((driver) =>
+                    driver.id === updatedDriver.id || driver._id === updatedDriver._id ? updatedDriver : driver
+                )
+            );
+    
+            toast.success('Driver updated successfully');
+            navigate('/drivers');
         } catch (error) {
-          console.error('Error updating driver:', error);
-          toast.error(error.message || 'Failed to update driver');
+            console.error('Error updating driver:', error);
+            toast.error(error.message || 'Failed to update driver');
         }
-      };
+    };
 
     const handleBack = () => {
         navigate('/drivers');
@@ -99,6 +153,8 @@ const EditDriver = () => {
 
     return (
         <div className='p-6 max-w-4xl mx-auto pt-16 my-10'>
+            {!navigator.onLine && <div className="alert alert-warning">You are offline. Changes will be saved locally.</div>}
+            {navigator.onLine && !isServerReachable && <div className="alert alert-danger">Server is unreachable. Changes will sync when the server is back online.</div>}
             <div className="flex justify-between items-center mb-6">
                 <h2 className='text-2xl font-bold'>Edit Driver</h2>
                 <button

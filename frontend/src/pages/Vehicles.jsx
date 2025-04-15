@@ -12,7 +12,34 @@ const Vehicles = () => {
   const [sortOrder, setSortOrder] = useState('asc');
   const [totalPages, setTotalPages] = useState(1);
 
-  // Toggle status filte
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isServerReachable, setIsServerReachable] = useState(true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    const checkServerStatus = async () => {
+      try {
+        const response = await fetch('/api/ping');
+        setIsServerReachable(response.ok);
+      } catch {
+        setIsServerReachable(false);
+      }
+    };
+
+    const interval = setInterval(checkServerStatus, 5000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(interval);
+    };
+  }, []);
+
   const toggleStatus = (e) => {
     if (status.includes(e.target.value)) {
       setStatus((prev) => prev.filter((item) => item !== e.target.value));
@@ -59,6 +86,8 @@ const Vehicles = () => {
 
   return (
     <div className="my-10 pt-16">
+      {!isOnline && <div className="alert alert-warning">You are offline. Changes will be saved locally.</div>}
+      {isOnline && !isServerReachable && <div className="alert alert-danger">Server is unreachable. Changes will sync when the server is back online.</div>}
       <div className="text-center py-4 text-3xl">
         <Title text={'Vehicles'} />
       </div>

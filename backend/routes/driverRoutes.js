@@ -84,4 +84,8 @@ router.delete('/:id', (req, res) => {
   res.status(200).json(deletedDriver); 
 });
 
+router.get('/ping', (req, res) => {
+  res.status(200).send('pong');
+});
+
 export default router;
