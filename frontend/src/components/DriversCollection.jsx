@@ -114,7 +114,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
       }, [setDrivers]);
 
       useEffect(() => {
-        const ws = new WebSocket(`ws://${window.location.hostname}:5002`);
+        const ws = new WebSocket(`ws://${window.location.hostname}:5001`);
         // Removed setSocket as socket state variable is no longer used
       
         ws.onopen = () => {
