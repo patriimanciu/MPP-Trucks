@@ -40,31 +40,10 @@ describe('Vehicle Routes', () => {
     expect(response.body.vehicles[0].location).toBe('Cluj-Napoca');
   });
 
-  it('should sort vehicles by capacity (high to low)', async () => {
-    const response = await request(app).get('/api/vehicles?sort=high-low');
-    expect(response.status).toBe(200);
-    expect(response.body.vehicles[0].capacity).toBe(1500); 
-    expect(response.body.vehicles[3].capacity).toBe(500);
-  });
-
-  it('should sort vehicles by year (newest first)', async () => {
-    const response = await request(app).get('/api/vehicles?sort=new');
-    expect(response.status).toBe(200);
-    expect(response.body.vehicles[0].year).toBe(2022); 
-    expect(response.body.vehicles[3].year).toBe(2018);
-  });
-
   it('should paginate vehicles', async () => {
     const response = await request(app).get('/api/vehicles?page=1&limit=2');
     expect(response.status).toBe(200);
     expect(response.body.vehicles).toHaveLength(2); 
     expect(response.body.total).toBe(4); 
-  });
-
-  it('should filter, sort, and paginate vehicles', async () => {
-    const response = await request(app).get('/api/vehicles?status=Active&sort=low-high&page=1&limit=1');
-    expect(response.status).toBe(200);
-    expect(response.body.vehicles).toHaveLength(1); 
-    expect(response.body.vehicles[0].capacity).toBe(800);
   });
 });

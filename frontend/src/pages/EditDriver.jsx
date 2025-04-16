@@ -280,6 +280,15 @@ const EditDriver = () => {
                                             alt="Current Profile"
                                             className="w-32 h-32 object-cover rounded-full"
                                         />
+                                        <div className="mt-2">
+                                            <a
+                                                href={driverToEdit.image}
+                                                download="profile-picture.jpg"
+                                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                            >
+                                                Download Profile Picture
+                                            </a>
+                                        </div>
                                     </div>
                                 )}
                             </div>
