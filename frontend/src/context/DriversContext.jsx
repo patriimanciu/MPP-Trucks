@@ -29,7 +29,7 @@ const DriversContextProvider = (props) => {
     useEffect(() => {
         const fetchDrivers = async () => {
             try {
-                const response = await fetch('http://localhost:5001/api/drivers');
+                const response = await fetch('http://localhost:5002/api/drivers');
                 if (!response.ok) {
                     throw new Error('Failed to fetch drivers');
                 }
@@ -45,7 +45,7 @@ const DriversContextProvider = (props) => {
 
     const resetDriverData = async () => {
       try {
-          const response = await fetch('http://localhost:5001/api/drivers');
+          const response = await fetch('http://localhost:5002/api/drivers');
           if (!response.ok) {
               throw new Error('Failed to reset drivers');
           }

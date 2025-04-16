@@ -113,57 +113,57 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         fetchDrivers();
       }, [setDrivers]);
 
-      // useEffect(() => {
-      //   const ws = new WebSocket(`ws://${window.location.hostname}:5001`);
-      //   // Removed setSocket as socket state variable is no longer used
+      useEffect(() => {
+        const ws = new WebSocket(`ws://${window.location.hostname}:5002`);
+        // Removed setSocket as socket state variable is no longer used
       
-      //   ws.onopen = () => {
-      //     console.log('WebSocket connection established');
-      //   };
+        ws.onopen = () => {
+          console.log('WebSocket connection established');
+        };
       
-      //   ws.onmessage = (event) => {
-      //     const message = JSON.parse(event.data);
-      //     console.log('Received WebSocket message:', message);
+        ws.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          console.log('Received WebSocket message:', message);
         
-      //     if (message.type === 'NEW_DRIVER') {
-      //       const newDriver = message.payload;
-      //       console.log('New driver received:', newDriver);
+          if (message.type === 'NEW_DRIVER') {
+            const newDriver = message.payload;
+            console.log('New driver received:', newDriver);
         
-      //       if (!navigator.onLine) {
-      //         console.log('App is offline. Queuing WebSocket update.');
-      //         const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
-      //         queuedOperations.push({ type: 'ADD', payload: newDriver });
-      //         localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
-      //         return;
-      //       }
+            if (!navigator.onLine) {
+              console.log('App is offline. Queuing WebSocket update.');
+              const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
+              queuedOperations.push({ type: 'ADD', payload: newDriver });
+              localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
+              return;
+            }
         
-      //       setAllDrivers((prevDrivers) => {
-      //         const updatedDrivers = [...prevDrivers, newDriver];
-      //         localStorage.setItem('drivers', JSON.stringify(updatedDrivers)); // Update offline cache
-      //         return updatedDrivers;
-      //       });
+            setAllDrivers((prevDrivers) => {
+              const updatedDrivers = [...prevDrivers, newDriver];
+              localStorage.setItem('drivers', JSON.stringify(updatedDrivers)); // Update offline cache
+              return updatedDrivers;
+            });
         
-      //       generateStatusChartData([...allDrivers, newDriver]);
-      //       generateDriversOverTimeData([...allDrivers, newDriver]);
-      //       generateAgeGroupChartData([...allDrivers, newDriver]);
+            generateStatusChartData([...allDrivers, newDriver]);
+            generateDriversOverTimeData([...allDrivers, newDriver]);
+            generateAgeGroupChartData([...allDrivers, newDriver]);
         
-      //       toast.success(`New driver added: ${newDriver.name} ${newDriver.surname}`);
-      //     }
-      //   };
+            toast.success(`New driver added: ${newDriver.name} ${newDriver.surname}`);
+          }
+        };
       
-      //   ws.onclose = () => {
-      //     console.log('WebSocket connection closed');
-      //   };
+        ws.onclose = () => {
+          console.log('WebSocket connection closed');
+        };
       
-      //   ws.onerror = (error) => {
-      //     console.error('WebSocket error:', error);
-      //   };
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+        };
       
-      //   return () => {
-      //     ws.close();
-      //     console.log('WebSocket connection cleaned up');
-      //   };
-      // }, [allDrivers]);
+        return () => {
+          ws.close();
+          console.log('WebSocket connection cleaned up');
+        };
+      }, [allDrivers]);
 
       useEffect(() => {
         if (allDrivers.length > 0) {

@@ -11,7 +11,7 @@ import driverRoutes from './routes/driverRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5002;
 
 app.use('/assets', express.static(path.join(__dirname, '../../frontend/public/assets')));
 
@@ -41,31 +41,49 @@ wss.on('connection', (ws) => {
     console.log('Client disconnected');
     clients.delete(ws);
   });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+    clients.delete(ws);
+  });
 });
 
 
 const broadcast = (data) => {
-  clients.forEach((client) => {
-    if (client.readyState === 1) {
-      client.send(JSON.stringify(data));
-    }
-  });
+  try {
+    const serializedData = JSON.stringify(data);
+    clients.forEach((client) => {
+      if (client.readyState === 1) {
+        client.send(serializedData);
+      }
+    });
+  } catch (error) {
+    console.error('Error broadcasting data:', error);
+  }
 };
 
 const driverData = [];
 
 setInterval(() => {
-  const newDriver = {
-    _id: Date.now(),
-    name: `Driver ${Math.floor(Math.random() * 100)}`,
-    surname: `Surname ${Math.floor(Math.random() * 100)}`,
-    phone: `1234567890`,
-    dateOfHiring: new Date().toISOString().split('T')[0],
-    assigned: ['Free', 'Assigned', 'On Leave'][Math.floor(Math.random() * 3)],
-  };
+  try {
+    const newDriver = {
+      _id: Date.now(),
+      name: `Driver ${Math.floor(Math.random() * 100)}`,
+      surname: `Surname ${Math.floor(Math.random() * 100)}`,
+      phone: `1234567890`,
+      dateOfHiring: new Date().toISOString().split('T')[0],
+      assigned: ['Free', 'Assigned', 'On Leave'][Math.floor(Math.random() * 3)],
+    };
 
-  driverData.push(newDriver);
-  console.log('New driver generated:', newDriver);
+    if (!newDriver.name || !newDriver.surname || !newDriver.phone) {
+      throw new Error('Invalid driver data');
+    }
 
-  broadcast({ type: 'NEW_DRIVER', payload: newDriver });
-}, 10000); 
+    driverData.push(newDriver);
+    console.log('New driver generated:', newDriver);
+
+    broadcast({ type: 'NEW_DRIVER', payload: newDriver });
+  } catch (error) {
+    console.error('Error generating new driver:', error);
+  }
+}, 10000);
