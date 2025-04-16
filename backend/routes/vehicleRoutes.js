@@ -5,7 +5,7 @@ const router = express.Router();
 
 // GET
 router.get('/', (req, res) => {
-  const { status, location, sortField = 'id', sortOrder = 'asc', page = 1, limit = 10 } = req.query;
+  const { status, location, sortField = 'id', sortOrder = 'asc', page = 1, limit = 8 } = req.query;
 
   let filteredVehicles = [...vehicleData];
 

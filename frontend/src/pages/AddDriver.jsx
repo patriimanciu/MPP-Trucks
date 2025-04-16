@@ -20,7 +20,20 @@ const AddDriver = () => {
     const [errors, setErrors] = useState({});
     const [isServerReachable, setIsServerReachable] = useState(true);
 
-    const imageOptions = [{ value: '', label: 'No Image' }];
+    const [imagePreview, setImagePreview] = useState(null);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    
+
+    const handleFileChange = (e) => {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+    
+      if (file) {
+        const previewUrl = URL.createObjectURL(file);
+        setImagePreview(previewUrl);
+      }
+    };
 
 
     useEffect(() => {
@@ -46,54 +59,73 @@ const AddDriver = () => {
     };
 
     const handleAddDriver = async () => {
+        if (isLoading) return;
+        setIsLoading(true);
+      
         const validationErrors = validateDriver(newDriver);
         if (Object.keys(validationErrors).length > 0) {
-            setErrors(validationErrors);
-            return;
+          setErrors(validationErrors);
+          setIsLoading(false);
+          return;
         }
-
+      
+        if (!selectedFile) {
+          toast.error('Please upload a profile image.');
+          setIsLoading(false);
+          return;
+        }
+      
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('driver', JSON.stringify(newDriver));
+      
         if (!navigator.onLine || !isServerReachable) {
-            console.log('Offline or server unreachable. Queuing operation.');
-            const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
-            console.log('Before adding:', queuedOperations);
-        
-            queuedOperations.push({
-                type: 'CREATE',
-                payload: newDriver,
-            });
-        
-            localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
-            console.log('After adding:', JSON.parse(localStorage.getItem('queuedOperations')));
-        
-            setDrivers((prevDrivers) => [...prevDrivers, newDriver]);
-        
-            toast.success(`${newDriver.name} ${newDriver.surname} was added locally. Changes will sync when back online.`);
-            navigate('/drivers');
+          const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
+          const isDuplicate = queuedOperations.some(
+            (op) => op.payload.name === newDriver.name && op.payload.surname === newDriver.surname
+          );
+      
+          if (isDuplicate) {
+            toast.error('This driver is already queued for addition.');
+            setIsLoading(false);
             return;
+          }
+      
+          queuedOperations.push({
+            type: 'CREATE',
+            payload: newDriver,
+          });
+      
+          localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
+          setDrivers((prevDrivers) => [...prevDrivers, newDriver]);
+          toast.success(`${newDriver.name} ${newDriver.surname} was added locally. Changes will sync when back online.`);
+          navigate('/drivers');
+          setIsLoading(false);
+          return;
         }
-
+      
         try {
-            const response = await fetch('/api/drivers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newDriver),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to add driver');
-            }
-
-            const addedDriver = await response.json();
-            setDrivers((prevDrivers) => [...prevDrivers, addedDriver]);
-
-            toast.success(`${addedDriver.name} ${addedDriver.surname} was added successfully.`);
-            navigate('/drivers');
+          const response1 = await fetch('/api/drivers/upload', {
+            method: 'POST',
+            body: formData,
+          });
+      
+          if (!response1.ok) {
+            const errorData = await response1.json();
+            throw new Error(errorData.message || 'Failed to upload file');
+          }
+      
+          const addedDriver = await response1.json();
+          setDrivers((prevDrivers) => [...prevDrivers, addedDriver]);
+          toast.success(`${addedDriver.name} ${addedDriver.surname} was added successfully.`);
+          navigate('/drivers');
         } catch (error) {
-            console.error('Error adding driver:', error);
-            toast.error(error.message || 'Failed to add driver');
+          console.error('Error adding driver:', error);
+          toast.error(error.message || 'Failed to add driver');
+        } finally {
+          setIsLoading(false);
         }
-    };
+      };
 
     useEffect(() => {
         const syncOperations = async () => {
@@ -245,22 +277,22 @@ const AddDriver = () => {
                                 {errors.address && <p className='text-red-500 text-sm mt-1'>{errors.address}</p>}
                             </div>
 
-                            {/* Driver Image */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Profile Image</label>
-                                <select 
-                                    value={newDriver.image} 
-                                    onChange={(e) => setNewDriver({ ...newDriver, image: e.target.value })} 
-                                    className='w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
-                                >
-                                    <option value=''>Select Image</option>
-                                    {imageOptions.map(opt => 
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    )}
-                                </select>
+                                <label htmlFor="fileUpload" className="block text-sm font-medium text-gray-700 mb-1">
+                                Profile Image
+                                </label>
+                                <input
+                                id="fileUpload"
+                                type="file"
+                                onChange={handleFileChange}
+                                className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                {imagePreview && (
+                                <div className="mt-4">
+                                    <img src={imagePreview} alt="Preview" className="w-32 h-32 object-cover rounded-full" />
+                                </div>
+                                )}
                             </div>
-
-
                         </div>
                     </div>
 

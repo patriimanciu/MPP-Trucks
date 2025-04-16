@@ -10,7 +10,7 @@ export default defineConfig({
   assetsInclude: ['**/*.svg', '**/*.jpg'],
   server: {
     proxy: {
-      '/api': 'http://localhost:5001',
+      '/api': 'http://localhost:5002',
     },
   },
 });

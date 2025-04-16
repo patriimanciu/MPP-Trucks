@@ -10,13 +10,14 @@ import driverRoutes from './routes/driverRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5002;
 
 app.use('/assets', express.static(path.join(__dirname, '../../frontend/public/assets')));
 
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
+app.use('/uploads', express.static('uploads'));
 app.use('/api/drivers', driverRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.get('/api/ping', (req, res) => {

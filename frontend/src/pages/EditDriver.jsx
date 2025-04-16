@@ -54,10 +54,6 @@ const EditDriver = () => {
         fetchDriver();
       }, [id, navigate]);
 
-    const imageOptions = [
-        { value: '', label: 'No Image' }
-    ];
-
     const validateDriver = (driver) => {
         let errors = {};
         if (!driver.name || driver.name.length < 2) errors.name = 'Name is required (min 2 characters)';
@@ -103,6 +99,12 @@ const EditDriver = () => {
             return;
         }
     
+        const formData = new FormData();
+        formData.append('driver', JSON.stringify(driverToEdit));
+        if (driverToEdit.imageFile) {
+            formData.append('file', driverToEdit.imageFile);
+        }
+    
         if (!navigator.onLine || !isServerReachable) {
             console.log('Offline or server unreachable. Queuing operation.');
             const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
@@ -115,15 +117,14 @@ const EditDriver = () => {
     
             toast.success('Changes saved locally. They will sync when back online.');
             navigate('/drivers');
-            return; 
+            return;
         }
     
         try {
             console.log('Online and server reachable. Proceeding with API call.');
             const response = await fetch(`/api/drivers/${driverToEdit.id || driverToEdit._id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(driverToEdit),
+                body: formData,
             });
     
             if (!response.ok) {
@@ -244,16 +245,21 @@ const EditDriver = () => {
                             {/* Driver Image */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Profile Image</label>
-                                <select 
-                                    value={driverToEdit.image} 
-                                    onChange={(e) => setDriverToEdit({ ...driverToEdit, image: e.target.value })} 
-                                    className='w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
-                                >
-                                    <option value=''>Select Image</option>
-                                    {imageOptions.map(opt => 
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    )}
-                                </select>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => setDriverToEdit({ ...driverToEdit, imageFile: e.target.files[0] })}
+                                    className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                {driverToEdit.image && (
+                                    <div className="mt-4">
+                                        <img
+                                            src={driverToEdit.image}
+                                            alt="Current Profile"
+                                            className="w-32 h-32 object-cover rounded-full"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

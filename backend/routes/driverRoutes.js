@@ -1,7 +1,20 @@
 import express from 'express';
 import { driverData } from '../data/drivers.js';
+import multer from 'multer';
+import path from 'path';
 
 const router = express.Router();
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // Directory to store uploaded files
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const upload = multer({ storage });
 
 // GET
 router.get('/', (req, res) => {
@@ -19,58 +32,87 @@ router.get('/:id', (req, res) => {
   res.json(driver);
 });
 
-// POST
-router.post('/', (req, res) => {
-  const newDriver = req.body;
-  if (!newDriver.name || newDriver.name.length < 2) {
-    return res.status(400).json({ message: 'Name is required and must be at least 2 characters long' });
+const validateDriver = (driver) => {
+  if (!driver.name || driver.name.length < 2) {
+    return 'Name is required and must be at least 2 characters long';
   }
-  if (!newDriver.surname || newDriver.surname.length < 2) {
-    return res.status(400).json({ message: 'Surname is required and must be at least 2 characters long' });
+  if (!driver.surname || driver.surname.length < 2) {
+    return 'Surname is required and must be at least 2 characters long';
   }
-  if (!newDriver.phone || !/^\d{10}$/.test(newDriver.phone)) {
-    return res.status(400).json({ message: 'A valid phone number is required (10 digits)' });
+  if (!driver.phone || !/^\d{10}$/.test(driver.phone)) {
+    return 'A valid phone number is required (10 digits)';
   }
-  if (!newDriver.dateOfHiring || !/^\d{4}-\d{2}-\d{2}$/.test(newDriver.dateOfHiring)) {
-    return res.status(400).json({ message: 'A valid hiring date is required (YYYY-MM-DD)' });
+  if (!driver.dateOfHiring || !/^\d{4}-\d{2}-\d{2}$/.test(driver.dateOfHiring)) {
+    return 'A valid hiring date is required (YYYY-MM-DD)';
   }
+  return null; // No errors
+};
 
-  const newId = driverData.length > 0 ? Math.max(...driverData.map((d) => d._id)) + 1 : 1;
-  const driverWithId = { ...newDriver, _id: newId };
+router.post('/upload', upload.single('file'), (req, res) => {
+  try {
+    console.log('Incoming file:', req.file);
+    console.log('Incoming driver data:', req.body.driver);
 
-  driverData.push(driverWithId);
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
 
-  res.status(201).json(driverWithId);
+    const newDriver = JSON.parse(req.body.driver);
+
+    const validationError = validateDriver(newDriver);
+    if (validationError) {
+      return res.status(400).json({ message: validationError });
+    }
+
+    const filePath = req.file.path;
+
+    const newId = driverData.length > 0 ? Math.max(...driverData.map((d) => d._id)) + 1 : 1;
+    const driverWithID = { 
+      ...newDriver, 
+      _id: newId, 
+      image: `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` 
+    };
+    console.log('New driver with ID:', driverWithID);
+
+    driverData.push(driverWithID);
+
+    console.log('Updated driverData array:', driverData);
+
+    res.status(201).json(driverWithID);
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    res.status(500).json({ message: 'Failed to upload file' });
+  }
 });
 
 // PUT
-router.put('/:id', (req, res) => {
-  const driverId = parseInt(req.params.id, 10);
-  const updatedDriver = req.body;
-  if (!updatedDriver.name || updatedDriver.name.length < 2) {
-    return res.status(400).json({ message: 'Name is required and must be at least 2 characters long' });
-  }
-  if (!updatedDriver.surname || updatedDriver.surname.length < 2) {
-    return res.status(400).json({ message: 'Surname is required and must be at least 2 characters long' });
-  }
-  if (!updatedDriver.phone || !/^\d{10}$/.test(updatedDriver.phone)) {
-    return res.status(400).json({ message: 'A valid phone number is required (10 digits)' });
-  }
-  if (!updatedDriver.dateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(updatedDriver.dateOfBirth)) {
-    return res.status(400).json({ message: 'A valid date of birth is required (YYYY-MM-DD)' });
-  }
-  if (!updatedDriver.dateOfHiring || !/^\d{4}-\d{2}-\d{2}$/.test(updatedDriver.dateOfHiring)) {
-    return res.status(400).json({ message: 'A valid hiring date is required (YYYY-MM-DD)' });
-  }
+router.put('/:id', upload.single('file'), async (req, res) => {
+  try {
+      const driverId = parseInt(req.params.id, 10);
+      const driver = driverData.find((d) => d._id === driverId);
 
-  const index = driverData.findIndex((driver) => driver._id === driverId);
-  if (index === -1) {
-    return res.status(404).json({ message: 'Driver not found' });
+      if (!driver) {
+          return res.status(404).json({ message: 'Driver not found' });
+      }
+
+      const updatedDriver = JSON.parse(req.body.driver);
+
+      const validationError = validateDriver(updatedDriver);
+      if (validationError) {
+        return res.status(400).json({ message: validationError });
+      }
+
+      if (req.file) {
+          updatedDriver.image = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+      }
+
+      Object.assign(driver, updatedDriver);
+
+      res.status(200).json(driver);
+  } catch (error) {
+      console.error('Error updating driver:', error);
+      res.status(500).json({ message: 'Failed to update driver' });
   }
-
-  driverData[index] = { ...driverData[index], ...updatedDriver };
-
-  res.json(driverData[index]);
 });
 
 // DELETE

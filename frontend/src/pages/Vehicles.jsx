@@ -5,12 +5,13 @@ import VehicleItem from '../components/VehicleItem';
 const Vehicles = () => {
   const [allVehicles, setAllVehicles] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(8);
   const [status, setStatus] = useState([]);
   const [location, setLocation] = useState([]);
   const [sortField, setSortField] = useState('id');
   const [sortOrder, setSortOrder] = useState('asc');
   const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(true);
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isServerReachable, setIsServerReachable] = useState(true);
@@ -56,33 +57,73 @@ const Vehicles = () => {
     }
   };
 
+  const fetchVehicles = React.useCallback(async (append = true) => {
+    try {
+      const queryParams = new URLSearchParams({
+        status: status.join(','),
+        location: location.join(','),
+        sortField,
+        sortOrder,
+        page: currentPage,
+        limit: itemsPerPage,
+      });
+  
+      const response = await fetch(`/api/vehicles?${queryParams.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch vehicles');
+      }
+  
+      const data = await response.json();
+  
+      setAllVehicles((prevVehicles) =>
+        append ? [...prevVehicles, ...data.vehicles] : data.vehicles
+      );
+      setTotalPages(Math.ceil(data.total / itemsPerPage));
+    } catch (error) {
+      console.error('Error fetching vehicles:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [status, location, sortField, sortOrder, currentPage, itemsPerPage]);
+  
+  useEffect(() => {  
+    fetchVehicles();
+  }, [fetchVehicles]);
+
   useEffect(() => {
-    const fetchVehicles = async () => {
-      try {
-        const queryParams = new URLSearchParams({
-          status: status.join(','),
-          location: location.join(','),
-          sortField,
-          sortOrder,
-          page: currentPage,
-          limit: itemsPerPage,
-        });
-  
-        const response = await fetch(`/api/vehicles?${queryParams.toString()}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch vehicles');
+    setCurrentPage(1); // Reset to the first page
+    fetchVehicles(false); // Replace the current list with the filtered results
+  }, [status, location, sortField, sortOrder, fetchVehicles]);
+
+  useEffect(() => {
+    if (currentPage > 1) {
+      fetchVehicles(true);
+    }
+  }, [currentPage, fetchVehicles]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (target.isIntersecting && currentPage < totalPages && !isLoadingMore) {
+          setIsLoadingMore(true);
+          setCurrentPage((prevPage) => prevPage + 1);
         }
+      },
+      { threshold: 1.0 } // Trigger when the sentinel is fully visible
+    );
   
-        const data = await response.json();
-        setAllVehicles(data.vehicles);
-        setTotalPages(Math.ceil(data.total / itemsPerPage));
-      } catch (error) {
-        console.error('Error fetching vehicles:', error);
+    const sentinel = document.getElementById('scroll-sentinel');
+    if (sentinel) {
+      observer.observe(sentinel);
+    }
+  
+    return () => {
+      if (sentinel) {
+        observer.unobserve(sentinel);
       }
     };
-  
-    fetchVehicles();
-  }, [status, location, sortField, sortOrder, currentPage, itemsPerPage]);
+  }, [currentPage, totalPages, isLoadingMore]);
 
   return (
     <div className="my-10 pt-16">
@@ -146,29 +187,6 @@ const Vehicles = () => {
             </select>
           </div>
 
-          {/* Pagination controls */}
-          <div className="flex flex-wrap justify-between items-center mb-6 ml-4">
-            <div className="flex items-center space-x-2 mb-4 sm:mb-0">
-              <span className="text-sm text-gray-600">Show</span>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                className="border rounded p-1 text-sm"
-              >
-                <option value={4}>4</option>
-                <option value={8}>8</option>
-                <option value={12}>12</option>
-                <option value={16}>16</option>
-              </select>
-              <span className="text-sm text-gray-600">per page</span>
-            </div>
-
-            <div className="text-sm text-gray-600">
-              Showing {(currentPage - 1) * itemsPerPage + 1}-
-              {Math.min(currentPage * itemsPerPage, allVehicles.length)} of {allVehicles.length} vehicles
-            </div>
-          </div>
-
           {/* Rendering Vehicles */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 gap-y-6 ml-4">
             {allVehicles.map((item, index) => (
@@ -188,46 +206,9 @@ const Vehicles = () => {
             ))}
           </div>
 
-          {/* Page navigation */}
-          {totalPages > 1 && (
-            <div className="flex justify-center mt-8">
-              <nav className="flex items-center">
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className={`px-3 py-1 rounded-l border ${
-                    currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'
-                  }`}
-                >
-                  Previous
-                </button>
-
-                <div className="flex">
-                  {[...Array(totalPages)].map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setCurrentPage(i + 1)}
-                      className={`px-3 py-1 border-t border-b ${
-                        currentPage === i + 1 ? 'bg-blue-50 text-blue-600 font-medium' : 'bg-white hover:bg-gray-50'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className={`px-3 py-1 rounded-r border ${
-                    currentPage === totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'
-                  }`}
-                >
-                  Next
-                </button>
-              </nav>
-            </div>
-          )}
+          <div id="scroll-sentinel" className="h-10"></div>
+          {isLoadingMore && <div className="text-center">Loading more vehicles...</div>}
+      
         </div>
       </div>
     </div>
