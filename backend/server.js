@@ -10,7 +10,7 @@ import driverRoutes from './routes/driverRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
 
 const app = express();
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5001;
 
 app.use('/assets', express.static(path.join(__dirname, '../../frontend/public/assets')));
 

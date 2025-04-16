@@ -68,8 +68,14 @@ const AddDriver = () => {
           setIsLoading(false);
           return;
         }
+
+        if (!navigator.onLine && selectedFile) {
+            toast.error('Photo upload is not allowed while offline. Please remove the photo or try again when online.');
+            setIsLoading(false);
+            return;
+          }
       
-        if (!selectedFile) {
+        if (navigator.onLine && !selectedFile) {
           toast.error('Please upload a profile image.');
           setIsLoading(false);
           return;
@@ -129,6 +135,7 @@ const AddDriver = () => {
 
     useEffect(() => {
         const syncOperations = async () => {
+            console.log("Sync opeation is triggered")
             if (navigator.onLine && isServerReachable) {
                 console.log('Syncing queued operations...');
                 let queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
@@ -285,8 +292,14 @@ const AddDriver = () => {
                                 id="fileUpload"
                                 type="file"
                                 onChange={handleFileChange}
-                                className="w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                disabled={!navigator.onLine}
+                                className={`w-full border rounded-md p-2 focus:outline-none focus:ring-2 ${
+                                !navigator.onLine ? 'bg-gray-200 cursor-not-allowed' : 'focus:ring-blue-500'
+                                }`}
                                 />
+                                {!navigator.onLine && (
+                                    <p className="text-red-500 text-sm mt-1">Photo upload is disabled while offline.</p>
+                                )}
                                 {imagePreview && (
                                 <div className="mt-4">
                                     <img src={imagePreview} alt="Preview" className="w-32 h-32 object-cover rounded-full" />

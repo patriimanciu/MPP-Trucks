@@ -72,20 +72,42 @@ const EditDriver = () => {
             if (navigator.onLine && isServerReachable) {
                 console.log('Syncing queued operations...');
                 const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
+                const remainingOperations = [];
+    
                 for (const operation of queuedOperations) {
                     try {
                         if (operation.type === 'UPDATE') {
-                            await fetch(`/api/drivers/${operation.id}`, {
+                            const formData = new FormData();
+                            formData.append('driver', JSON.stringify(operation.payload));
+                            if (operation.payload.imageFile) {
+                                formData.append('file', operation.payload.imageFile);
+                            }
+    
+                            const response = await fetch(`/api/drivers/${operation.id}`, {
                                 method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(operation.payload),
+                                body: formData,
                             });
+    
+                            if (!response.ok) {
+                                throw new Error('Failed to sync UPDATE operation');
+                            }
+    
+                            console.log('Successfully synced UPDATE operation:', operation);
                         }
                     } catch (error) {
                         console.error('Error syncing operation:', error);
+                        remainingOperations.push(operation); // Add failed operation back to the queue
                     }
                 }
-                localStorage.removeItem('queuedOperations'); // Clear the queue after syncing
+    
+                // Update localStorage with remaining operations
+                if (remainingOperations.length > 0) {
+                    localStorage.setItem('queuedOperations', JSON.stringify(remainingOperations));
+                    console.log('Updated queued operations in localStorage:', remainingOperations);
+                } else {
+                    localStorage.removeItem('queuedOperations'); // Clear the queue if all operations are synced
+                    console.log('Cleared queued operations from localStorage.');
+                }
             }
         };
     
@@ -100,18 +122,19 @@ const EditDriver = () => {
         }
     
         const formData = new FormData();
-        formData.append('driver', JSON.stringify(driverToEdit));
+        formData.append('driver', JSON.stringify(driverToEdit)); // Send driver data as a JSON string
         if (driverToEdit.imageFile) {
-            formData.append('file', driverToEdit.imageFile);
+            formData.append('file', driverToEdit.imageFile); // Include the file if it exists
         }
     
         if (!navigator.onLine || !isServerReachable) {
             console.log('Offline or server unreachable. Queuing operation.');
+            const { ...driverWithoutFile } = driverToEdit; // Exclude the file from the payload
             const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
             queuedOperations.push({
                 type: 'UPDATE',
-                id: driverToEdit.id || driverToEdit._id,
-                payload: driverToEdit,
+                id: driverToEdit._id || driverToEdit.id,
+                payload: driverWithoutFile,
             });
             localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
     
@@ -122,7 +145,7 @@ const EditDriver = () => {
     
         try {
             console.log('Online and server reachable. Proceeding with API call.');
-            const response = await fetch(`/api/drivers/${driverToEdit.id || driverToEdit._id}`, {
+            const response = await fetch(`/api/drivers/${driverToEdit._id || driverToEdit.id}`, {
                 method: 'PUT',
                 body: formData,
             });
@@ -136,7 +159,7 @@ const EditDriver = () => {
     
             setDrivers((prevDrivers) =>
                 prevDrivers.map((driver) =>
-                    driver.id === updatedDriver.id || driver._id === updatedDriver._id ? updatedDriver : driver
+                    driver._id === updatedDriver._id || driver.id === updatedDriver.id ? updatedDriver : driver
                 )
             );
     
