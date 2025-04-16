@@ -29,7 +29,7 @@ const Drivers = () => {
             try {
               if (operation.type === 'UPDATE') {
                 console.log('Syncing UPDATE operation:', operation);
-                const response = await fetch(`/api/drivers/${operation.id}`, {
+                const response = await fetch(`http://localhost:5001/api/drivers/${operation.id}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(operation.payload),
@@ -40,7 +40,7 @@ const Drivers = () => {
                 }
               } else if (operation.type === 'CREATE') {
                 console.log('Syncing CREATE operation:', operation);
-                const response = await fetch('/api/drivers', {
+                const response = await fetch('http://localhost:5001/api/drivers', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(operation.payload),
@@ -51,7 +51,7 @@ const Drivers = () => {
                 }
               } else if (operation.type === 'DELETE') {
                 console.log('Syncing DELETE operation:', operation);
-                const response = await fetch(`/api/drivers/${operation.id}`, {
+                const response = await fetch(`http://localhost:5001/api/drivers/${operation.id}`, {
                   method: 'DELETE',
                 });
     

@@ -48,6 +48,32 @@ const validateDriver = (driver) => {
   return null; // No errors
 };
 
+const createDriver = (req, res) => {
+  try {
+    console.log('Incoming request body:', req.body);
+
+    const { name, surname, phone, dateOfHiring, assigned } = req.body;
+
+    if (!name || !surname || !phone || !dateOfHiring || !assigned) {
+      console.log('Validation failed:', { name, surname, phone, dateOfHiring, assigned });
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    const newId = driverData.length > 0 ? Math.max(...driverData.map((d) => d._id)) + 1 : 1;
+    const newDriver = { _id: newId, name, surname, phone, dateOfHiring, assigned };
+
+    driverData.push(newDriver);
+
+    console.log('Driver added to memory:', newDriver);
+    res.status(201).json(newDriver);
+  } catch (error) {
+    console.error('Error creating driver:', error);
+    res.status(500).json({ message: 'Failed to create driver' });
+  }
+};
+
+router.post('/', createDriver);
+
 router.post('/upload', upload.single('file'), (req, res) => {
   try {
     console.log('Incoming file:', req.file);
@@ -88,33 +114,49 @@ router.post('/upload', upload.single('file'), (req, res) => {
 // PUT
 router.put('/:id', upload.single('file'), async (req, res) => {
   try {
-      const driverId = parseInt(req.params.id, 10);
-      const driver = driverData.find((d) => d._id === driverId);
+    const driverId = parseInt(req.params.id, 10);
+    console.log(`Updating driver with ID: ${driverId}`);
+    console.log('Incoming request body:', req.body);
+    console.log('Incoming file:', req.file);
 
-      if (!driver) {
-          return res.status(404).json({ message: 'Driver not found' });
-      }
+    const driver = driverData.find((d) => d._id === driverId);
+    if (!driver) {
+      console.log(`Driver with ID ${driverId} not found`);
+      return res.status(404).json({ message: 'Driver not found' });
+    }
 
-      const updatedDriver = JSON.parse(req.body.driver);
+    if (!req.body.driver) {
+      console.log('No driver data provided in the request body');
+      return res.status(400).json({ message: 'Driver data is required' });
+    }
 
-      const validationError = validateDriver(updatedDriver);
-      if (validationError) {
-        return res.status(400).json({ message: validationError });
-      }
+    let updatedDriver;
+    try {
+      updatedDriver = JSON.parse(req.body.driver);
+    } catch (parseError) {
+      console.log('Failed to parse driver data:', parseError);
+      return res.status(400).json({ message: 'Invalid driver data format' });
+    }
 
-      if (req.file) {
-          updatedDriver.image = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-      }
+    const validationError = validateDriver(updatedDriver);
+    if (validationError) {
+      console.log('Validation failed:', validationError);
+      return res.status(400).json({ message: validationError });
+    }
 
-      Object.assign(driver, updatedDriver);
+    if (req.file) {
+      updatedDriver.image = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    }
 
-      res.status(200).json(driver);
+    Object.assign(driver, updatedDriver);
+
+    console.log('Updated driver:', driver);
+    res.status(200).json(driver);
   } catch (error) {
-      console.error('Error updating driver:', error);
-      res.status(500).json({ message: 'Failed to update driver' });
+    console.error('Error updating driver:', error);
+    res.status(500).json({ message: 'Failed to update driver' });
   }
 });
-
 // DELETE
 router.delete('/:id', (req, res) => {
   const driverId = parseInt(req.params.id, 10);
