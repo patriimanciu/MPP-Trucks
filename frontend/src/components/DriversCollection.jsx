@@ -28,7 +28,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
 
     const { setDrivers } = useContext(DriversContext);
     const [allDrivers, setAllDrivers] = useState([]);
-    
+
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -68,13 +68,17 @@ const DriversCollection = ({ onAdd, onEdit }) => {
 
       useEffect(() => {
         const fetchDrivers = async () => {
+          console.log('Fetching drivers...');
           if (!navigator.onLine) {
+            console.log('App is offline. Attempting to load cached drivers...');
             const cachedDrivers = JSON.parse(localStorage.getItem('drivers'));
             if (cachedDrivers) {
+              console.log('Loaded drivers from cache:', cachedDrivers);
               setDrivers(cachedDrivers);
               setAllDrivers(cachedDrivers);
               toast.success('Loaded drivers from offline cache.');
             } else {
+              console.error('No drivers available offline.');
               toast.error('No drivers available offline.');
             }
             return;
@@ -86,6 +90,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
               throw new Error('Failed to fetch drivers');
             }
             const drivers = await response.json();
+            console.log('Fetched drivers from API:', drivers);
             setDrivers(drivers);
             setAllDrivers(drivers);
       
@@ -95,6 +100,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
       
             const cachedDrivers = JSON.parse(localStorage.getItem('drivers'));
             if (cachedDrivers) {
+              console.log('Loaded drivers from cache after API failure:', cachedDrivers);
               setDrivers(cachedDrivers);
               setAllDrivers(cachedDrivers);
               toast.success('Loaded drivers from offline cache.');
@@ -107,6 +113,58 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         fetchDrivers();
       }, [setDrivers]);
 
+      // useEffect(() => {
+      //   const ws = new WebSocket(`ws://${window.location.hostname}:5001`);
+      //   // Removed setSocket as socket state variable is no longer used
+      
+      //   ws.onopen = () => {
+      //     console.log('WebSocket connection established');
+      //   };
+      
+      //   ws.onmessage = (event) => {
+      //     const message = JSON.parse(event.data);
+      //     console.log('Received WebSocket message:', message);
+        
+      //     if (message.type === 'NEW_DRIVER') {
+      //       const newDriver = message.payload;
+      //       console.log('New driver received:', newDriver);
+        
+      //       if (!navigator.onLine) {
+      //         console.log('App is offline. Queuing WebSocket update.');
+      //         const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
+      //         queuedOperations.push({ type: 'ADD', payload: newDriver });
+      //         localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
+      //         return;
+      //       }
+        
+      //       setAllDrivers((prevDrivers) => {
+      //         const updatedDrivers = [...prevDrivers, newDriver];
+      //         localStorage.setItem('drivers', JSON.stringify(updatedDrivers)); // Update offline cache
+      //         return updatedDrivers;
+      //       });
+        
+      //       generateStatusChartData([...allDrivers, newDriver]);
+      //       generateDriversOverTimeData([...allDrivers, newDriver]);
+      //       generateAgeGroupChartData([...allDrivers, newDriver]);
+        
+      //       toast.success(`New driver added: ${newDriver.name} ${newDriver.surname}`);
+      //     }
+      //   };
+      
+      //   ws.onclose = () => {
+      //     console.log('WebSocket connection closed');
+      //   };
+      
+      //   ws.onerror = (error) => {
+      //     console.error('WebSocket error:', error);
+      //   };
+      
+      //   return () => {
+      //     ws.close();
+      //     console.log('WebSocket connection cleaned up');
+      //   };
+      // }, [allDrivers]);
+
       useEffect(() => {
         if (allDrivers.length > 0) {
           generateStatusChartData(allDrivers);
@@ -114,6 +172,69 @@ const DriversCollection = ({ onAdd, onEdit }) => {
           generateAgeGroupChartData(allDrivers);
         }
       }, [allDrivers]);
+
+      useEffect(() => {
+        const syncQueuedOperations = async () => {
+          if (navigator.onLine) {
+            console.log('App is back online. Syncing queued operations...');
+            const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
+      
+            for (const operation of queuedOperations) {
+              try {
+                if (operation.type === 'CREATE') {
+                  console.log('Syncing CREATE operation:', operation);
+      
+                  const response = await fetch('/api/drivers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(operation.payload),
+                  });
+      
+                  if (!response.ok) {
+                    throw new Error(`Failed to sync CREATE operation`);
+                  }
+      
+                  const addedDriver = await response.json();
+                  console.log('Driver added by backend:', addedDriver);
+      
+                  setAllDrivers((prevDrivers) => {
+                    const updatedDrivers = [...prevDrivers, addedDriver];
+                    localStorage.setItem('drivers', JSON.stringify(updatedDrivers));
+                    return updatedDrivers;
+                  });
+                } else if (operation.type === 'DELETE') {
+                  console.log('Syncing DELETE operation:', operation.id);
+      
+                  const response = await fetch(`/api/drivers/${operation.id}`, {
+                    method: 'DELETE',
+                  });
+      
+                  if (!response.ok) {
+                    throw new Error(`Failed to sync DELETE operation: ${response.statusText}`);
+                  }
+      
+                  setAllDrivers((prevDrivers) => {
+                    const updatedDrivers = prevDrivers.filter((driver) => driver._id !== operation.id);
+                    localStorage.setItem('drivers', JSON.stringify(updatedDrivers));
+                    return updatedDrivers;
+                  });
+                }
+              } catch (error) {
+                console.error('Error syncing operation:', error);
+              }
+            }
+      
+            localStorage.removeItem('queuedOperations');
+            toast.success('Queued operations synced successfully.');
+          }
+        };
+      
+        window.addEventListener('online', syncQueuedOperations);
+      
+        return () => {
+          window.removeEventListener('online', syncQueuedOperations);
+        };
+      }, []);
     
     const indexOfLastDriver = currentPage * itemsPerPage;
     const indexOfFirstDriver = indexOfLastDriver - itemsPerPage;
