@@ -163,17 +163,15 @@ const AddDriver = () => {
                         }
                     } catch (error) {
                         console.error('Error syncing operation:', error);
-                        // Add the failed operation back to the remaining operations
                         remainingOperations.push(operation);
                     }
                 }
     
-                // Update localStorage with remaining operations
                 if (remainingOperations.length > 0) {
                     localStorage.setItem('queuedOperations', JSON.stringify(remainingOperations));
                     console.log('Updated queued operations in localStorage:', remainingOperations);
                 } else {
-                    localStorage.removeItem('queuedOperations'); // Clear the queue if all operations are synced
+                    localStorage.removeItem('queuedOperations');
                     console.log('Cleared queued operations from localStorage.');
                 }
             }

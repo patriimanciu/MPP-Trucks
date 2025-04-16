@@ -115,7 +115,6 @@ const DriversCollection = ({ onAdd, onEdit }) => {
 
       useEffect(() => {
         const ws = new WebSocket(`ws://${window.location.hostname}:5001`);
-        // Removed setSocket as socket state variable is no longer used
       
         ws.onopen = () => {
           console.log('WebSocket connection established');
@@ -139,7 +138,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         
             setAllDrivers((prevDrivers) => {
               const updatedDrivers = [...prevDrivers, newDriver];
-              localStorage.setItem('drivers', JSON.stringify(updatedDrivers)); // Update offline cache
+              localStorage.setItem('drivers', JSON.stringify(updatedDrivers));
               return updatedDrivers;
             });
         

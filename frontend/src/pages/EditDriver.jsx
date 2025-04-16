@@ -96,16 +96,15 @@ const EditDriver = () => {
                         }
                     } catch (error) {
                         console.error('Error syncing operation:', error);
-                        remainingOperations.push(operation); // Add failed operation back to the queue
+                        remainingOperations.push(operation);
                     }
                 }
     
-                // Update localStorage with remaining operations
                 if (remainingOperations.length > 0) {
                     localStorage.setItem('queuedOperations', JSON.stringify(remainingOperations));
                     console.log('Updated queued operations in localStorage:', remainingOperations);
                 } else {
-                    localStorage.removeItem('queuedOperations'); // Clear the queue if all operations are synced
+                    localStorage.removeItem('queuedOperations');
                     console.log('Cleared queued operations from localStorage.');
                 }
             }
@@ -122,14 +121,14 @@ const EditDriver = () => {
         }
     
         const formData = new FormData();
-        formData.append('driver', JSON.stringify(driverToEdit)); // Send driver data as a JSON string
+        formData.append('driver', JSON.stringify(driverToEdit));
         if (driverToEdit.imageFile) {
-            formData.append('file', driverToEdit.imageFile); // Include the file if it exists
+            formData.append('file', driverToEdit.imageFile);
         }
     
         if (!navigator.onLine || !isServerReachable) {
             console.log('Offline or server unreachable. Queuing operation.');
-            const { ...driverWithoutFile } = driverToEdit; // Exclude the file from the payload
+            const { ...driverWithoutFile } = driverToEdit;
             const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
             queuedOperations.push({
                 type: 'UPDATE',

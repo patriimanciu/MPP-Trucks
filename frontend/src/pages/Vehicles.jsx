@@ -4,42 +4,87 @@ import VehicleItem from '../components/VehicleItem';
 
 const Vehicles = () => {
   const [allVehicles, setAllVehicles] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [displayedVehicles, setDisplayedVehicles] = useState([]);
   const [itemsPerPage] = useState(8);
   const [status, setStatus] = useState([]);
   const [location, setLocation] = useState([]);
   const [sortField, setSortField] = useState('id');
   const [sortOrder, setSortOrder] = useState('asc');
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoadingMore, setIsLoadingMore] = useState(true);
-
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isServerReachable, setIsServerReachable] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    const checkServerStatus = async () => {
+    const fetchVehicles = async () => {
       try {
-        const response = await fetch('/api/ping');
-        setIsServerReachable(response.ok);
-      } catch {
-        setIsServerReachable(false);
+        const response = await fetch('/api/vehicles');
+        if (!response.ok) {
+          throw new Error('Failed to fetch vehicles');
+        }
+        const data = await response.json();
+        setAllVehicles(data.vehicles);
+        setDisplayedVehicles(data.vehicles.slice(0, itemsPerPage));
+      } catch (error) {
+        console.error('Error fetching vehicles:', error);
       }
     };
 
-    const interval = setInterval(checkServerStatus, 5000);
+    fetchVehicles();
+  }, [itemsPerPage]);
+
+  useEffect(() => {
+    let filtered = [...allVehicles];
+
+    if (status.length > 0) {
+      filtered = filtered.filter((vehicle) => status.includes(vehicle.status));
+    }
+
+    if (location.length > 0) {
+      filtered = filtered.filter((vehicle) => location.includes(vehicle.location));
+    }
+
+    filtered.sort((a, b) => {
+      if (sortOrder === 'asc') {
+        return a[sortField] > b[sortField] ? 1 : -1;
+      } else {
+        return a[sortField] < b[sortField] ? 1 : -1;
+      }
+    });
+
+    setDisplayedVehicles(filtered.slice(0, itemsPerPage));
+  }, [status, location, sortField, sortOrder, allVehicles, itemsPerPage]);
+
+  const loadMoreVehicles = () => {
+    if (isLoadingMore) return;
+    setIsLoadingMore(true);
+
+    setTimeout(() => {
+      const nextVehicles = allVehicles.slice(0, itemsPerPage);
+      setDisplayedVehicles((prevVehicles) => [...prevVehicles, ...nextVehicles]);
+      setIsLoadingMore(false);
+    }, 500); 
+  };
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (target.isIntersecting && !isLoadingMore) {
+          loadMoreVehicles();
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    const sentinel = document.getElementById('scroll-sentinel');
+    if (sentinel) {
+      observer.observe(sentinel);
+    }
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      clearInterval(interval);
+      if (sentinel) {
+        observer.unobserve(sentinel);
+      }
     };
-  }, []);
+  }, [isLoadingMore, allVehicles]);
 
   const toggleStatus = (e) => {
     if (status.includes(e.target.value)) {
@@ -57,78 +102,8 @@ const Vehicles = () => {
     }
   };
 
-  const fetchVehicles = React.useCallback(async (append = true) => {
-    try {
-      const queryParams = new URLSearchParams({
-        status: status.join(','),
-        location: location.join(','),
-        sortField,
-        sortOrder,
-        page: currentPage,
-        limit: itemsPerPage,
-      });
-  
-      const response = await fetch(`/api/vehicles?${queryParams.toString()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch vehicles');
-      }
-  
-      const data = await response.json();
-  
-      setAllVehicles((prevVehicles) =>
-        append ? [...prevVehicles, ...data.vehicles] : data.vehicles
-      );
-      setTotalPages(Math.ceil(data.total / itemsPerPage));
-    } catch (error) {
-      console.error('Error fetching vehicles:', error);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [status, location, sortField, sortOrder, currentPage, itemsPerPage]);
-  
-  useEffect(() => {  
-    fetchVehicles();
-  }, [fetchVehicles]);
-
-  useEffect(() => {
-    setCurrentPage(1); // Reset to the first page
-    fetchVehicles(false); // Replace the current list with the filtered results
-  }, [status, location, sortField, sortOrder, fetchVehicles]);
-
-  useEffect(() => {
-    if (currentPage > 1) {
-      fetchVehicles(true);
-    }
-  }, [currentPage, fetchVehicles]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const target = entries[0];
-        if (target.isIntersecting && currentPage < totalPages && !isLoadingMore) {
-          setIsLoadingMore(true);
-          setCurrentPage((prevPage) => prevPage + 1);
-        }
-      },
-      { threshold: 1.0 } // Trigger when the sentinel is fully visible
-    );
-  
-    const sentinel = document.getElementById('scroll-sentinel');
-    if (sentinel) {
-      observer.observe(sentinel);
-    }
-  
-    return () => {
-      if (sentinel) {
-        observer.unobserve(sentinel);
-      }
-    };
-  }, [currentPage, totalPages, isLoadingMore]);
-
   return (
     <div className="my-10 pt-16">
-      {!isOnline && <div className="alert alert-warning">You are offline. Changes will be saved locally.</div>}
-      {isOnline && !isServerReachable && <div className="alert alert-danger">Server is unreachable. Changes will sync when the server is back online.</div>}
       <div className="text-center py-4 text-3xl">
         <Title text={'Vehicles'} />
       </div>
@@ -189,7 +164,7 @@ const Vehicles = () => {
 
           {/* Rendering Vehicles */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 gap-y-6 ml-4">
-            {allVehicles.map((item, index) => (
+            {displayedVehicles.map((item, index) => (
               <VehicleItem
                 key={index}
                 id={item.id}
@@ -208,7 +183,6 @@ const Vehicles = () => {
 
           <div id="scroll-sentinel" className="h-10"></div>
           {isLoadingMore && <div className="text-center">Loading more vehicles...</div>}
-      
         </div>
       </div>
     </div>
