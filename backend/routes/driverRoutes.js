@@ -1,175 +1,185 @@
 import express from 'express';
-import { driverData } from '../data/drivers.js';
+import * as Driver from '../models/Driver.js';
 import multer from 'multer';
 import path from 'path';
 
-const router = express.Router();
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Directory to store uploaded files
+    cb(null, 'public/assets/people/');
   },
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  }
 });
 
 const upload = multer({ storage });
+const router = express.Router();
+function transformDriverForFrontend(driver) {
+  return {
+    _id: driver.id,
+    name: driver.name,
+    surname: driver.surname,
+    phone: driver.phone,
+    dateOfBirth: driver.date_of_birth ? 
+      new Date(driver.date_of_birth).toISOString().split('T')[0] : '',
+    dateOfHiring: driver.date_of_hiring ? 
+      new Date(driver.date_of_hiring).toISOString().split('T')[0] : '',
+    assigned: driver.assigned_status,
+    salary: driver.salary,
+    address: driver.address,
+    image: Array.isArray(driver.image_url) ? 
+      driver.image_url : 
+      driver.image_url ? [driver.image_url] : []
+  };
+}
 
-// GET
-router.get('/', (req, res) => {
-  res.json(driverData);
-});
+function transformDriverForDatabase(driver) {
+  return {
+    name: driver.name,
+    surname: driver.surname,
+    phone: driver.phone,
+    date_of_birth: driver.dateOfBirth,
+    date_of_hiring: driver.dateOfHiring,
+    assigned_status: driver.assigned,
+    salary: driver.salary,
+    address: driver.address,
+    image_url: Array.isArray(driver.image) ? driver.image[0] : driver.image,
+  };
+}
 
-router.get('/:id', (req, res) => {
-  const driverId = parseInt(req.params.id, 10);
-  const driver = driverData.find((d) => d._id === driverId);
-
-  if (!driver) {
-    return res.status(404).json({ message: 'Driver not found' });
-  }
-
-  res.json(driver);
-});
-
-const validateDriver = (driver) => {
-  if (!driver.name || driver.name.length < 2) {
-    return 'Name is required and must be at least 2 characters long';
-  }
-  if (!driver.surname || driver.surname.length < 2) {
-    return 'Surname is required and must be at least 2 characters long';
-  }
-  if (!driver.phone || !/^\d{10}$/.test(driver.phone)) {
-    return 'A valid phone number is required (10 digits)';
-  }
-  if (!driver.dateOfHiring || !/^\d{4}-\d{2}-\d{2}$/.test(driver.dateOfHiring)) {
-    return 'A valid hiring date is required (YYYY-MM-DD)';
-  }
-  return null; // No errors
-};
-
-const createDriver = (req, res) => {
+// Get all drivers
+router.get('/', async (req, res) => {
   try {
-    console.log('Incoming request body:', req.body);
-
-    const { name, surname, phone, dateOfHiring, assigned } = req.body;
-
-    if (!name || !surname || !phone || !dateOfHiring || !assigned) {
-      console.log('Validation failed:', { name, surname, phone, dateOfHiring, assigned });
-      return res.status(400).json({ message: 'All fields are required' });
-    }
-
-    const newId = driverData.length > 0 ? Math.max(...driverData.map((d) => d._id)) + 1 : 1;
-    const newDriver = { _id: newId, name, surname, phone, dateOfHiring, assigned };
-
-    driverData.push(newDriver);
-
-    console.log('Driver added to memory:', newDriver);
-    res.status(201).json(newDriver);
+    const drivers = await Driver.getAllDrivers();
+    const transformedDrivers = drivers.map(transformDriverForFrontend);
+    res.json(transformedDrivers);
   } catch (error) {
-    console.error('Error creating driver:', error);
-    res.status(500).json({ message: 'Failed to create driver' });
-  }
-};
-
-router.post('/', createDriver);
-
-router.post('/upload', upload.single('file'), (req, res) => {
-  try {
-    console.log('Incoming file:', req.file);
-    console.log('Incoming driver data:', req.body.driver);
-
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    const newDriver = JSON.parse(req.body.driver);
-
-    const validationError = validateDriver(newDriver);
-    if (validationError) {
-      return res.status(400).json({ message: validationError });
-    }
-
-    const filePath = req.file.path;
-
-    const newId = driverData.length > 0 ? Math.max(...driverData.map((d) => d._id)) + 1 : 1;
-    const driverWithID = { 
-      ...newDriver, 
-      _id: newId, 
-      image: `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` 
-    };
-    console.log('New driver with ID:', driverWithID);
-
-    driverData.push(driverWithID);
-
-    console.log('Updated driverData array:', driverData);
-
-    res.status(201).json(driverWithID);
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    res.status(500).json({ message: 'Failed to upload file' });
+    console.error('Error fetching drivers:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// PUT
-router.put('/:id', upload.single('file'), async (req, res) => {
+// Get a specific driver
+router.get('/:id', async (req, res) => {
   try {
-    const driverId = parseInt(req.params.id, 10);
-    console.log(`Updating driver with ID: ${driverId}`);
-    console.log('Incoming request body:', req.body);
-    console.log('Incoming file:', req.file);
-
-    const driver = driverData.find((d) => d._id === driverId);
+    const driver = await Driver.getDriverById(req.params.id);
+    
     if (!driver) {
-      console.log(`Driver with ID ${driverId} not found`);
       return res.status(404).json({ message: 'Driver not found' });
     }
+    
+    res.json(transformDriverForFrontend(driver));
+  } catch (error) {
+    console.error('Error fetching driver:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
-    if (!req.body.driver) {
-      console.log('No driver data provided in the request body');
-      return res.status(400).json({ message: 'Driver data is required' });
+router.post('/', async (req, res) => {
+  try {
+    const driverData = req.body;
+    console.log('Raw driver data from frontend:', driverData);
+    
+    let formattedBirthDate = null;
+    if (driverData.dateOfBirth) {
+      formattedBirthDate = driverData.dateOfBirth;
+      console.log('Formatted birth date:', formattedBirthDate);
     }
-
-    let updatedDriver;
-    try {
-      updatedDriver = JSON.parse(req.body.driver);
-    } catch (parseError) {
-      console.log('Failed to parse driver data:', parseError);
-      return res.status(400).json({ message: 'Invalid driver data format' });
+    
+    let formattedHiringDate = null;
+    if (driverData.dateOfHiring) {
+      formattedHiringDate = driverData.dateOfHiring;
+      console.log('Formatted hiring date:', formattedHiringDate);
     }
+    
+    const dbDriver = {
+      name: driverData.name,
+      surname: driverData.surname,
+      phone: driverData.phone,
+      date_of_birth: formattedBirthDate,
+      date_of_hiring: formattedHiringDate,
+      assigned_status: driverData.assigned || 'Free',
+      salary: driverData.salary || '',
+      address: driverData.address || '',
+      image_url: Array.isArray(driverData.image) && driverData.image.length > 0 
+        ? driverData.image[0] 
+        : null
+    };
+    
+    console.log('Prepared driver data for database:', dbDriver);
+    
+    const createdDriver = await Driver.createDriver(dbDriver);
+    
+    const responseData = transformDriverForFrontend(createdDriver);
+    res.status(201).json(responseData);
+  } catch (error) {
+    console.error('Error creating driver:', error);
+    res.status(500).json({ message: error.message || 'Error creating driver' });
+  }
+});
 
-    const validationError = validateDriver(updatedDriver);
-    if (validationError) {
-      console.log('Validation failed:', validationError);
-      return res.status(400).json({ message: validationError });
+// Update a driver
+router.put('/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid driver ID' });
     }
-
-    if (req.file) {
-      updatedDriver.image = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-    }
-
-    Object.assign(driver, updatedDriver);
-
-    console.log('Updated driver:', driver);
-    res.status(200).json(driver);
+    
+    console.log('Incoming data from frontend:', req.body);
+    
+    const driverData = {
+      name: req.body.name,
+      surname: req.body.surname,
+      phone: req.body.phone,
+      dateOfBirth: req.body.dateOfBirth,
+      dateOfHiring: req.body.dateOfHiring,
+      assigned: req.body.assigned,
+      salary: req.body.salary,
+      address: req.body.address,
+      image: req.body.image
+    };
+    
+    const updatedDriver = await Driver.updateDriver(id, driverData);
+    
+    const responseData = {
+      _id: updatedDriver.id,
+      name: updatedDriver.name,
+      surname: updatedDriver.surname,
+      phone: updatedDriver.phone,
+      dateOfBirth: updatedDriver.date_of_birth ? 
+        new Date(updatedDriver.date_of_birth).toISOString().split('T')[0] : '',
+      dateOfHiring: updatedDriver.date_of_hiring ? 
+        new Date(updatedDriver.date_of_hiring).toISOString().split('T')[0] : '',
+      assigned: updatedDriver.assigned_status,
+      salary: updatedDriver.salary,
+      address: updatedDriver.address,
+      image: updatedDriver.image_url ? [updatedDriver.image_url] : []
+    };
+    
+    res.json(responseData);
   } catch (error) {
     console.error('Error updating driver:', error);
-    res.status(500).json({ message: 'Failed to update driver' });
+    res.status(500).json({ error: error.message });
   }
-});
-// DELETE
-router.delete('/:id', (req, res) => {
-  const driverId = parseInt(req.params.id, 10);
-  const index = driverData.findIndex((driver) => driver._id === driverId);
-  if (index === -1) {
-    return res.status(404).json({ message: 'Driver not found' });
-  }
-  const deletedDriver = driverData.splice(index, 1)[0];
-  res.status(200).json(deletedDriver); 
 });
 
-router.get('/ping', (req, res) => {
-  res.status(200).send('pong');
+// Delete a driver
+router.delete('/:id', async (req, res) => {
+  try {
+    const deletedDriver = await Driver.deleteDriver(req.params.id);
+    
+    if (!deletedDriver) {
+      return res.status(404).json({ message: 'Driver not found' });
+    }
+    
+    res.json(transformDriverForFrontend(deletedDriver));
+  } catch (error) {
+    console.error('Error deleting driver:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 export default router;

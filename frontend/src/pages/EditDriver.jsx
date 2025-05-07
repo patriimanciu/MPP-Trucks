@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 import { DriversContext } from '../context/DriversContext'
 import toast from 'react-hot-toast';
@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 const EditDriver = () => {
     const navigate = useNavigate();
     const { id } = useParams();
-    const { setDrivers } = useContext(DriversContext);
+    // const { setDrivers } = useContext(DriversContext);
     
     const [driverToEdit, setDriverToEdit] = useState({
         name: '',
@@ -43,7 +43,20 @@ const EditDriver = () => {
               throw new Error('Driver not found');
             }
             const driver = await response.json();
-            setDriverToEdit(driver);
+            console.log('Raw driver data:', driver);
+      
+            const formattedDriver = {
+                ...driver,
+                dateOfBirth: driver.dateOfBirth ? 
+                new Date(driver.dateOfBirth).toISOString().split('T')[0] : '',
+                dateOfHiring: driver.dateOfHiring ? 
+                new Date(driver.dateOfHiring).toISOString().split('T')[0] : '',
+                image: Array.isArray(driver.image) && driver.image.length > 0 ? 
+                driver.image[0] : driver.image || ''
+            };
+            
+            console.log('Formatted driver data:', formattedDriver);
+            setDriverToEdit(formattedDriver);
           } catch (error) {
             console.error('Error fetching driver:', error);
             toast.error('Driver not found');
@@ -113,55 +126,71 @@ const EditDriver = () => {
         syncOperations();
     }, [isServerReachable]);
 
+    
     const handleSave = async () => {
         const validation = validateDriver(driverToEdit);
         if (Object.keys(validation).length > 0) {
             setErrors(validation);
             return;
         }
-    
-        const formData = new FormData();
-        formData.append('driver', JSON.stringify(driverToEdit));
-        if (driverToEdit.imageFile) {
-            formData.append('file', driverToEdit.imageFile);
-        }
-    
+
+        // Format the data properly for API using your prepared apiDriver
+        const apiDriver = {
+            ...driverToEdit,
+            image: Array.isArray(driverToEdit.image) ? 
+            driverToEdit.image : 
+            driverToEdit.image ? [driverToEdit.image] : []
+        };
+        
+        console.log('Sending data to API:', apiDriver);
+
+        // For offline handling - no changes needed
         if (!navigator.onLine || !isServerReachable) {
             console.log('Offline or server unreachable. Queuing operation.');
-            const { ...driverWithoutFile } = driverToEdit;
+            const { ...driverWithoutFile } = apiDriver; // Use apiDriver here
             const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
             queuedOperations.push({
                 type: 'UPDATE',
-                id: driverToEdit._id || driverToEdit.id,
+                id: apiDriver._id, // Use consistent field
                 payload: driverWithoutFile,
             });
             localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
-    
+
             toast.success('Changes saved locally. They will sync when back online.');
             navigate('/drivers');
             return;
         }
-    
+
         try {
             console.log('Online and server reachable. Proceeding with API call.');
-            const response = await fetch(`/api/drivers/${driverToEdit._id || driverToEdit.id}`, {
-                method: 'PUT',
-                body: formData,
-            });
-    
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to update driver');
+            
+            // Make sure we have a clean numeric ID
+            const driverId = parseInt(apiDriver._id.toString(), 10);
+            if (isNaN(driverId)) {
+                throw new Error('Invalid driver ID');
             }
-    
+            
+            console.log('Using driver ID for API:', driverId);
+            
+            // Send as JSON
+            const response = await fetch(`/api/drivers/${driverId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(apiDriver),
+            });
+
+            if (!response.ok) {
+                // Try to get error message
+                const errorData = await response.json().catch(() => null);
+                const errorMessage = errorData?.error || `${response.status} ${response.statusText}`;
+                throw new Error(`Failed to update driver: ${errorMessage}`);
+            }
+
             const updatedDriver = await response.json();
-    
-            setDrivers((prevDrivers) =>
-                prevDrivers.map((driver) =>
-                    driver._id === updatedDriver._id || driver.id === updatedDriver.id ? updatedDriver : driver
-                )
-            );
-    
+            console.log('Driver updated successfully:', updatedDriver);
+
             toast.success('Driver updated successfully');
             navigate('/drivers');
         } catch (error) {
@@ -319,7 +348,7 @@ const EditDriver = () => {
                                     onChange={(e) => setDriverToEdit({ ...driverToEdit, assigned: e.target.value })} 
                                     className='w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
                                 >
-                                    <option value="Free">Free</option>
+                                    <option value="Free">Unassigned</option>
                                     <option value="Assigned">Assigned</option>
                                     <option value="On Leave">On Leave</option>
                                 </select>

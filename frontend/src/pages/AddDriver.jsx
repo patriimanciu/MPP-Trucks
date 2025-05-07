@@ -48,132 +48,213 @@ const AddDriver = () => {
         checkServerStatus();
     }, []);
 
+    // Update your validateDriver function
     const validateDriver = (driver) => {
         let errors = {};
         if (!driver.name || driver.name.length < 2) errors.name = 'Name is required (min 2 characters)';
         if (!driver.surname || driver.surname.length < 2) errors.surname = 'Surname is required (min 2 characters)';
         if (!driver.phone || !/^\d{10}$/.test(driver.phone)) errors.phone = 'Valid phone number is required (10 digits)';
-        if (!driver.dateOfHiring || !/^\d{4}-\d{2}-\d{2}$/.test(driver.dateOfHiring))
-            errors.dateOfHiring = 'Valid date is required (YYYY-MM-DD)';
+        
+        if (!driver.dateOfHiring) {
+            errors.dateOfHiring = 'Date of hiring is required';
+        } else if (!/^\d{4}-\d{2}-\d{2}$/.test(driver.dateOfHiring)) {
+            errors.dateOfHiring = 'Date must be in YYYY-MM-DD format';
+        }
+        
+        if (driver.dateOfBirth && !/^\d{4}-\d{2}-\d{2}$/.test(driver.dateOfBirth)) {
+            errors.dateOfBirth = 'Date must be in YYYY-MM-DD format';
+        }
+        
+        if (!driver.address) errors.address = 'Address is required';
+        
         return errors;
     };
 
     const handleAddDriver = async () => {
         if (isLoading) return;
         setIsLoading(true);
-      
+
         const validationErrors = validateDriver(newDriver);
         if (Object.keys(validationErrors).length > 0) {
-          setErrors(validationErrors);
-          setIsLoading(false);
-          return;
+        setErrors(validationErrors);
+        setIsLoading(false);
+        return;
         }
-
-        if (!navigator.onLine && selectedFile) {
-            toast.error('Photo upload is not allowed while offline. Please remove the photo or try again when online.');
-            setIsLoading(false);
-            return;
-          }
-      
-        if (navigator.onLine && !selectedFile) {
-          toast.error('Please upload a profile image.');
-          setIsLoading(false);
-          return;
-        }
-      
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        formData.append('driver', JSON.stringify(newDriver));
-      
+    
+        // Create a formatted driver object for consistency
+        const driverToSave = {
+        ...newDriver,
+        // Ensure the image is always an array for consistency
+        image: imagePreview ? [imagePreview] : []
+        };
+        
+        // Offline flow
         if (!navigator.onLine || !isServerReachable) {
-          const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
-          const isDuplicate = queuedOperations.some(
-            (op) => op.payload.name === newDriver.name && op.payload.surname === newDriver.surname
-          );
-      
-          if (isDuplicate) {
+        console.log('Adding driver in offline mode');
+        
+        // Create a temporary ID
+        const tempId = `temp_${Date.now()}`;
+        const offlineDriver = {
+            ...driverToSave,
+            _id: tempId
+        };
+        
+        // Save to offline queue
+        const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
+        
+        // Check for duplicates
+        const isDuplicate = queuedOperations.some(
+            (op) => op.type === 'CREATE' && 
+            op.payload.name === newDriver.name && 
+            op.payload.surname === newDriver.surname
+        );
+    
+        if (isDuplicate) {
             toast.error('This driver is already queued for addition.');
             setIsLoading(false);
             return;
-          }
-      
-          queuedOperations.push({
+        }
+        
+        // Add to queue with file info if available
+        queuedOperations.push({
             type: 'CREATE',
-            payload: newDriver,
-          });
-      
-          localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
-          setDrivers((prevDrivers) => [...prevDrivers, newDriver]);
-          toast.success(`${newDriver.name} ${newDriver.surname} was added locally. Changes will sync when back online.`);
-          navigate('/drivers');
-          setIsLoading(false);
-          return;
+            payload: driverToSave,
+            tempId: tempId,
+            hasFile: !!selectedFile, // Flag to indicate file needs upload when online
+            fileName: selectedFile?.name
+        });
+    
+        localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
+        
+        // Update local state
+        setDrivers((prevDrivers) => [...prevDrivers, offlineDriver]);
+        
+        toast.success(`${newDriver.name} ${newDriver.surname} was added locally. Changes will sync when back online.`);
+        navigate('/drivers');
+        setIsLoading(false);
+        return;
         }
-      
+
         try {
-          const response1 = await fetch('/api/drivers/upload', {
-            method: 'POST',
-            body: formData,
-          });
-      
-          if (!response1.ok) {
-            const errorData = await response1.json();
-            throw new Error(errorData.message || 'Failed to upload file');
-          }
-      
-          const addedDriver = await response1.json();
-          setDrivers((prevDrivers) => [...prevDrivers, addedDriver]);
-          toast.success(`${addedDriver.name} ${addedDriver.surname} was added successfully.`);
-          navigate('/drivers');
+            console.log('Adding driver in online mode');
+            
+            // If we have a file, use FormData
+            if (selectedFile) {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                formData.append('driver', JSON.stringify(driverToSave));
+                
+                const response = await fetch('/api/drivers/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || 'Failed to add driver with image');
+                }
+                
+                const addedDriver = await response.json();
+                setDrivers((prevDrivers) => [...prevDrivers, addedDriver]);
+                toast.success(`${addedDriver.name} ${addedDriver.surname} was added successfully.`);
+            } else {
+                // No file, use regular JSON API with empty image array
+                const driverData = {
+                    ...driverToSave,
+                    image: [] // Explicitly set empty array for no image
+                };
+                
+                const response = await fetch('/api/drivers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(driverData),
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || 'Failed to add driver');
+                }
+                
+                const addedDriver = await response.json();
+                setDrivers((prevDrivers) => [...prevDrivers, addedDriver]);
+                toast.success(`${addedDriver.name} ${addedDriver.surname} was added successfully.`);
+            }
+            
+            navigate('/drivers');
         } catch (error) {
-          console.error('Error adding driver:', error);
-          toast.error(error.message || 'Failed to add driver');
+            console.error('Error adding driver:', error);
+            toast.error(error.message || 'Failed to add driver');
         } finally {
-          setIsLoading(false);
+            setIsLoading(false);
         }
-      };
+    };
 
     useEffect(() => {
         const syncOperations = async () => {
-            console.log("Sync opeation is triggered")
+            console.log("Sync operation is triggered");
             if (navigator.onLine && isServerReachable) {
-                console.log('Syncing queued operations...');
-                let queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
-                console.log('Queued operations to sync:', queuedOperations);
-    
-                const remainingOperations = [];
-    
-                for (const operation of queuedOperations) {
-                    try {
-                        if (operation.type === 'CREATE') {
-                            console.log('Syncing operation:', operation);
-                            const response = await fetch('/api/drivers', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(operation.payload),
-                            });
-    
-                            if (!response.ok) {
-                                throw new Error('Failed to sync operation');
-                            }
-    
-                            const addedDriver = await response.json();
-                            setDrivers((prevDrivers) => [...prevDrivers, addedDriver]);
-                            console.log('Successfully synced operation:', operation);
-                        }
-                    } catch (error) {
-                        console.error('Error syncing operation:', error);
-                        remainingOperations.push(operation);
+            console.log('Syncing queued operations...');
+            let queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
+            console.log('Queued operations to sync:', queuedOperations);
+        
+            const remainingOperations = [];
+        
+            for (const operation of queuedOperations) {
+                try {
+                if (operation.type === 'CREATE') {
+                    console.log('Syncing operation:', operation);
+                    
+                    // Choose endpoint based on whether this operation has a file
+                    let response;
+                    
+                    if (operation.hasFile) {
+                    // This requires the user to select the file again
+                    // In a real app, you'd store the file in IndexedDB or similar
+                    toast.warning(`Please re-upload the file for driver: ${operation.payload.name} ${operation.payload.surname}`);
+                    remainingOperations.push(operation);
+                    continue;
+                    } else {
+                    // Standard API without file
+                    response = await fetch('/api/drivers', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(operation.payload),
+                    });
                     }
+        
+                    if (!response.ok) {
+                    throw new Error('Failed to sync operation');
+                    }
+        
+                    const addedDriver = await response.json();
+                    
+                    // Update local state - remove temp and add real
+                    setDrivers((prevDrivers) => {
+                    // Filter out temp version if it exists
+                    const filtered = operation.tempId ? 
+                        prevDrivers.filter(d => d._id !== operation.tempId) : 
+                        prevDrivers;
+                    
+                    // Add the real driver from server  
+                    return [...filtered, addedDriver];
+                    });
+                    
+                    console.log('Successfully synced operation:', operation);
+                    toast.success(`Synced: ${addedDriver.name} ${addedDriver.surname}`);
                 }
-    
-                if (remainingOperations.length > 0) {
-                    localStorage.setItem('queuedOperations', JSON.stringify(remainingOperations));
-                    console.log('Updated queued operations in localStorage:', remainingOperations);
-                } else {
-                    localStorage.removeItem('queuedOperations');
-                    console.log('Cleared queued operations from localStorage.');
+                } catch (error) {
+                console.error('Error syncing operation:', error);
+                remainingOperations.push(operation);
                 }
+            }
+        
+            if (remainingOperations.length > 0) {
+                localStorage.setItem('queuedOperations', JSON.stringify(remainingOperations));
+                console.log('Updated queued operations in localStorage:', remainingOperations);
+            } else {
+                localStorage.removeItem('queuedOperations');
+                console.log('Cleared queued operations from localStorage.');
+            }
             }
         };
     
@@ -284,7 +365,7 @@ const AddDriver = () => {
 
                             <div>
                                 <label htmlFor="fileUpload" className="block text-sm font-medium text-gray-700 mb-1">
-                                Profile Image
+                                    Profile Image <span className="text-gray-500">(Optional)</span>
                                 </label>
                                 <input
                                 id="fileUpload"
@@ -333,7 +414,7 @@ const AddDriver = () => {
                                     onChange={(e) => setNewDriver({ ...newDriver, assigned: e.target.value })} 
                                     className='w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
                                 >
-                                    <option value="Free">Free</option>
+                                    <option value="Free">Unassigned</option>
                                     <option value="Assigned">Assigned</option>
                                     <option value="On Leave">On Leave</option>
                                 </select>

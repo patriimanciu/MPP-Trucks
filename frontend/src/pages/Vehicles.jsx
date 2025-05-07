@@ -3,88 +3,67 @@ import Title from '../components/Title';
 import VehicleItem from '../components/VehicleItem';
 
 const Vehicles = () => {
+
   const [allVehicles, setAllVehicles] = useState([]);
   const [displayedVehicles, setDisplayedVehicles] = useState([]);
-  const [itemsPerPage] = useState(8);
+  const [itemsPerPage] = useState(32);
   const [status, setStatus] = useState([]);
   const [location, setLocation] = useState([]);
-  const [sortField, setSortField] = useState('id');
+  const [sortField, setSortField] = useState('brand');
   const [sortOrder, setSortOrder] = useState('asc');
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-
+  
   useEffect(() => {
     const fetchVehicles = async () => {
       try {
-        const response = await fetch('/api/vehicles');
-        if (!response.ok) {
-          throw new Error('Failed to fetch vehicles');
+        console.log("Fetching vehicles with filters...");
+        
+        // Build query parameters
+        const params = new URLSearchParams();
+        
+        // Add sorting parameters
+        params.append('sortBy', sortField);
+        params.append('sortOrder', sortOrder);
+        
+        // Add status filter (if any selected)
+        if (status.length > 0) {
+          params.append('status', status.join(','));
         }
+        
+        // Add location filter (if any selected)
+        if (location.length > 0) {
+          params.append('location', location.join(','));
+        }
+        
+        // Build the URL with query parameters
+        const url = `/api/vehicles${params.toString() ? '?' + params.toString() : ''}`;
+        console.log("Fetching from URL:", url);
+        
+        const response = await fetch(url);
         const data = await response.json();
-        setAllVehicles(data.vehicles);
-        setDisplayedVehicles(data.vehicles.slice(0, itemsPerPage));
+        
+        console.log("API response:", data);
+        
+        if (Array.isArray(data)) {
+          setAllVehicles(data);
+          setDisplayedVehicles(data.slice(0, itemsPerPage));
+        } else {
+          console.error("API didn't return an array:", data);
+          setAllVehicles([]);
+          setDisplayedVehicles([]);
+        }
       } catch (error) {
-        console.error('Error fetching vehicles:', error);
+        console.error("Error fetching vehicles:", error);
+        setAllVehicles([]);
+        setDisplayedVehicles([]);
       }
     };
 
     fetchVehicles();
-  }, [itemsPerPage]);
-
+  }, [status, location, sortField, sortOrder, itemsPerPage]); 
+  
   useEffect(() => {
-    let filtered = [...allVehicles];
-
-    if (status.length > 0) {
-      filtered = filtered.filter((vehicle) => status.includes(vehicle.status));
-    }
-
-    if (location.length > 0) {
-      filtered = filtered.filter((vehicle) => location.includes(vehicle.location));
-    }
-
-    filtered.sort((a, b) => {
-      if (sortOrder === 'asc') {
-        return a[sortField] > b[sortField] ? 1 : -1;
-      } else {
-        return a[sortField] < b[sortField] ? 1 : -1;
-      }
-    });
-
-    setDisplayedVehicles(filtered.slice(0, itemsPerPage));
-  }, [status, location, sortField, sortOrder, allVehicles, itemsPerPage]);
-
-  const loadMoreVehicles = () => {
-    if (isLoadingMore) return;
-    setIsLoadingMore(true);
-
-    setTimeout(() => {
-      const nextVehicles = allVehicles.slice(0, itemsPerPage);
-      setDisplayedVehicles((prevVehicles) => [...prevVehicles, ...nextVehicles]);
-      setIsLoadingMore(false);
-    }, 500); 
-  };
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const target = entries[0];
-        if (target.isIntersecting && !isLoadingMore) {
-          loadMoreVehicles();
-        }
-      },
-      { threshold: 1.0 }
-    );
-
-    const sentinel = document.getElementById('scroll-sentinel');
-    if (sentinel) {
-      observer.observe(sentinel);
-    }
-
-    return () => {
-      if (sentinel) {
-        observer.unobserve(sentinel);
-      }
-    };
-  }, [isLoadingMore, allVehicles]);
+    setDisplayedVehicles(allVehicles.slice(0, itemsPerPage));
+  }, [allVehicles, itemsPerPage]);
 
   const toggleStatus = (e) => {
     if (status.includes(e.target.value)) {
@@ -165,24 +144,22 @@ const Vehicles = () => {
           {/* Rendering Vehicles */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 gap-y-6 ml-4">
             {displayedVehicles.map((item, index) => (
-              <VehicleItem
-                key={index}
-                id={item.id}
-                image={item.image}
-                plate={item.plate}
-                brand={item.brand}
-                model={item.model}
-                status={item.status}
-                location={item.location}
-                assignedTo={item.assignedTo}
-                capacity={item.capacity}
-                year={item.year}
-              />
+              <VehicleItem 
+                key={index} 
+                id={item._id || item.id}
+                image={Array.isArray(item.image) ? item.image : []} 
+                plate={item.plate || ''}
+                brand={item.brand || ''}
+                model={item.model || ''}
+                status={item.status || ''}
+                capacity={item.capacity || ''}
+                year={item.year || ''}
+                location={item.location || ''}
+                assignedTo={item.assignedTo || 'Unavailable'}
+                borderColor={item.borderColor}
+            />
             ))}
           </div>
-
-          <div id="scroll-sentinel" className="h-10"></div>
-          {isLoadingMore && <div className="text-center">Loading more vehicles...</div>}
         </div>
       </div>
     </div>

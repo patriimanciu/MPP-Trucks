@@ -20,7 +20,7 @@ ChartJS.register(ArcElement, Tooltip, Legend, LineElement, CategoryScale, Linear
 const DriversCollection = ({ onAdd, onEdit }) => {
     const getStatusColor = (status) => {
         switch(status.toLowerCase()) {
-          case 'free': return 'bg-green-100 text-green-800';
+          case 'unassigned': return 'bg-green-100 text-green-800';
           case 'assigned': return 'bg-red-100 text-red-800';
           default: return 'bg-gray-100 text-gray-800';
         }
@@ -91,8 +91,12 @@ const DriversCollection = ({ onAdd, onEdit }) => {
             }
             const drivers = await response.json();
             console.log('Fetched drivers from API:', drivers);
-            setDrivers(drivers);
-            setAllDrivers(drivers);
+            if (Array.isArray(drivers)) {
+              setAllDrivers(drivers);
+            } else {
+              console.error('Expected drivers array but got:', drivers);
+              setAllDrivers([]);
+            }
       
             localStorage.setItem('drivers', JSON.stringify(drivers));
           } catch (error) {
@@ -237,9 +241,9 @@ const DriversCollection = ({ onAdd, onEdit }) => {
     
     const indexOfLastDriver = currentPage * itemsPerPage;
     const indexOfFirstDriver = indexOfLastDriver - itemsPerPage;
-    const currentDrivers = allDrivers?.slice(indexOfFirstDriver, indexOfLastDriver) || [];
-    const totalPages = Math.ceil((allDrivers?.length || 0) / itemsPerPage);
-
+    const currentDrivers = Array.isArray(allDrivers) 
+        ? allDrivers.slice(indexOfFirstDriver, indexOfLastDriver) 
+        : [];const totalPages = Math.ceil((allDrivers?.length || 0) / itemsPerPage);
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
     };
@@ -301,12 +305,12 @@ const DriversCollection = ({ onAdd, onEdit }) => {
     };
 
     const generateStatusChartData = (drivers) => {
-        const freeDrivers = drivers.filter((driver) => driver.assigned === 'Free').length;
+        const freeDrivers = drivers.filter((driver) => driver.assigned === 'Unassigned').length;
         const assignedDrivers = drivers.filter((driver) => driver.assigned === 'Assigned').length;
         const onLeaveDrivers = drivers.filter((driver) => driver.assigned === 'On Leave').length;
     
         setStatusChartData({
-          labels: ['Free', 'Assigned', 'On Leave'],
+          labels: ['Unassigned', 'Assigned', 'On Leave'],
           datasets: [
             {
               label: 'Driver Status',

@@ -12,12 +12,20 @@ const VehiclesCollection = () => {
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
     useEffect(() => {
-        setAllVehicles(vehicleData);
-    }, [vehicleData])
+        if (vehicleData && Array.isArray(vehicleData)) {
+          console.log("Setting vehicle data, length:", vehicleData.length);
+          setAllVehicles(vehicleData);
+        } else {
+          console.warn("vehicleData is not an array:", vehicleData);
+          setAllVehicles([]); // Set to empty array if data is invalid
+        }
+      }, [vehicleData]);
 
     const indexOfLastDriver = currentPage * itemsPerPage;
     const indexOfFirstDriver = indexOfLastDriver - itemsPerPage;
-    const currentVehicles = allVehicles?.slice(indexOfFirstDriver, indexOfLastDriver) || [];
+    const currentVehicles = allVehicles && Array.isArray(allVehicles) 
+        ? allVehicles.slice(indexOfFirstDriver, indexOfLastDriver) 
+        : [];
     const totalPages = Math.ceil((allVehicles?.length || 0) / itemsPerPage);
 
     const handlePageChange = (pageNumber) => {

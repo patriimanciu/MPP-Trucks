@@ -67,26 +67,26 @@ const broadcast = (data) => {
 
 const driverData = [];
 
-setInterval(() => {
-  try {
-    const newDriver = {
-      _id: Date.now(),
-      name: `Driver ${Math.floor(Math.random() * 100)}`,
-      surname: `Surname ${Math.floor(Math.random() * 100)}`,
-      phone: `1234567890`,
-      dateOfHiring: new Date().toISOString().split('T')[0],
-      assigned: ['Free', 'Assigned', 'On Leave'][Math.floor(Math.random() * 3)],
-    };
+// setInterval(() => {
+//   try {
+//     const newDriver = {
+//       _id: Date.now(),
+//       name: `Driver ${Math.floor(Math.random() * 100)}`,
+//       surname: `Surname ${Math.floor(Math.random() * 100)}`,
+//       phone: `1234567890`,
+//       dateOfHiring: new Date().toISOString().split('T')[0],
+//       assigned: ['Free', 'Assigned', 'On Leave'][Math.floor(Math.random() * 3)],
+//     };
 
-    if (!newDriver.name || !newDriver.surname || !newDriver.phone) {
-      throw new Error('Invalid driver data');
-    }
+//     if (!newDriver.name || !newDriver.surname || !newDriver.phone) {
+//       throw new Error('Invalid driver data');
+//     }
 
-    driverData.push(newDriver);
-    console.log('New driver generated:', newDriver);
+//     driverData.push(newDriver);
+//     console.log('New driver generated:', newDriver);
 
-    broadcast({ type: 'NEW_DRIVER', payload: newDriver });
-  } catch (error) {
-    console.error('Error generating new driver:', error);
-  }
-}, 10000);
+//     broadcast({ type: 'NEW_DRIVER', payload: newDriver });
+//   } catch (error) {
+//     console.error('Error generating new driver:', error);
+//   }
+// }, 10000);
