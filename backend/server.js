@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 
 import driverRoutes from './routes/driverRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
+import videoRoutes from './routes/videoRoutes.js'
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -17,7 +18,9 @@ app.use('/assets', express.static(path.join(__dirname, '../../frontend/public/as
 
 app.use(cors({ origin: '*' }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+app.use('/api/videos', videoRoutes);
 app.use('/uploads', express.static('uploads'));
 app.use('/api/drivers', driverRoutes);
 app.use('/api/vehicles', vehicleRoutes);
