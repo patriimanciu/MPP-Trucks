@@ -1,62 +1,51 @@
 import { query } from '../db.js';
 
 // Get all vehicles
-export async function getAllVehicles(sortBy = 'id', sortOrder = 'asc', filters = {}) {
+export async function getAllVehicles(sortBy = 'id', sortOrder = 'asc', filters = {}, limit = 20, offset = 0) {
   try {
+    // Start building the query
     let queryText = `
-      SELECT v.*, 
-             CASE 
-               WHEN EXISTS (SELECT 1 FROM driver_vehicles WHERE vehicle_id = v.id) THEN 'Assigned' 
-               ELSE 'Unassigned' 
-             END AS assigned_status
+      SELECT v.*, d.name || ' ' || d.surname AS assigned_to_name
       FROM vehicles v
+      LEFT JOIN driver_vehicles dv ON v.id = dv.vehicle_id AND dv.is_primary = true
+      LEFT JOIN drivers d ON dv.driver_id = d.id 
       WHERE 1=1
     `;
     
     const queryParams = [];
     let paramIndex = 1;
     
-    if (filters.brand) {
-      queryText += ` AND v.brand ILIKE $${paramIndex}`;
-      queryParams.push(`%${filters.brand}%`);
-      paramIndex++;
-    }
-    
-    if (filters.model) {
-      queryText += ` AND v.model ILIKE $${paramIndex}`;
-      queryParams.push(`%${filters.model}%`);
-      paramIndex++;
-    }
-    
+    // Add filters to the query
     if (filters.status && filters.status.length > 0) {
-      queryText += ` AND (`;
-      filters.status.forEach((statusVal, idx) => {
-        if (idx > 0) queryText += ` OR `;
-        queryText += `v.status = $${paramIndex}`;
-        queryParams.push(statusVal);
-        paramIndex++;
-      });
-      queryText += `)`;
+      queryText += ` AND v.status IN (${filters.status.map((_, i) => `$${paramIndex++}`).join(', ')})`;
+      queryParams.push(...filters.status);
     }
     
     if (filters.location && filters.location.length > 0) {
-      queryText += ` AND (`;
-      filters.location.forEach((locationVal, idx) => {
-        if (idx > 0) queryText += ` OR `;
-        queryText += `v.location = $${paramIndex}`;
-        queryParams.push(locationVal);
-        paramIndex++;
-      });
-      queryText += `)`;
+      queryText += ` AND v.location IN (${filters.location.map((_, i) => `$${paramIndex++}`).join(', ')})`;
+      queryParams.push(...filters.location);
     }
     
-    queryText += ` ORDER BY v.${sortBy} ${sortOrder}`;
+    // Add a count query to get total
+    const countQueryText = `
+      SELECT COUNT(*) 
+      FROM (${queryText}) AS filtered_vehicles
+    `;
+    const countResult = await query(countQueryText, queryParams);
+    const totalCount = parseInt(countResult.rows[0].count, 10);
     
-    console.log('Executing query:', queryText);
-    console.log('With parameters:', queryParams);
+    // Add sorting and pagination to the main query
+    queryText += ` ORDER BY ${sortBy} ${sortOrder === 'desc' ? 'DESC' : 'ASC'}`;
+    queryText += ` LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+    queryParams.push(limit, offset);
     
+    // Execute the main query
     const result = await query(queryText, queryParams);
-    return result.rows;
+    
+    return {
+      vehicles: result.rows,
+      totalCount
+    };
   } catch (error) {
     console.error('Error in getAllVehicles:', error);
     throw error;
@@ -163,6 +152,42 @@ export async function getVehicleDrivers(vehicleId) {
     return result.rows;
   } catch (error) {
     console.error('Error in getVehicleDrivers:', error);
+    throw error;
+  }
+}
+
+export async function getFleetStatisticsByBrand() {
+  try {
+    const queryText = `
+      SELECT 
+        v.brand,
+        COUNT(DISTINCT v.id) AS total_vehicles,
+        COUNT(DISTINCT dv.driver_id) AS assigned_drivers,
+        ROUND(AVG(EXTRACT(YEAR FROM CURRENT_DATE) - v.year)::numeric, 1) AS avg_vehicle_age,
+        ROUND(AVG(d.salary)::numeric, 2) AS avg_driver_salary,
+        COUNT(DISTINCT CASE WHEN v.status = 'Active' THEN v.id END) AS active_vehicles,
+        COUNT(DISTINCT CASE WHEN v.status = 'Maintenance' THEN v.id END) AS maintenance_vehicles,
+        STRING_AGG(DISTINCT v.location, ', ' ORDER BY v.location LIMIT 5) AS top_locations
+      FROM 
+        vehicles v
+      LEFT JOIN 
+        driver_vehicles dv ON v.id = dv.vehicle_id
+      LEFT JOIN 
+        drivers d ON dv.driver_id = d.id
+      GROUP BY 
+        v.brand
+      ORDER BY 
+        total_vehicles DESC
+      LIMIT 50;
+    `;
+    
+    console.time('Fleet statistics query');
+    const result = await query(queryText);
+    console.timeEnd('Fleet statistics query');
+    
+    return result.rows;
+  } catch (error) {
+    console.error('Error in getFleetStatisticsByBrand:', error);
     throw error;
   }
 }

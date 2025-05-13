@@ -27,13 +27,18 @@ function transformVehicleForFrontend(vehicle) {
 
 router.get('/', async (req, res) => {
   try {
-    const { sortBy = 'id', sortOrder = 'asc' } = req.query;
-    const statusValues = Array.isArray(req.query.status) ? req.query.status : 
-                    req.query.status ? [req.query.status] : [];
-
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const offset = (page - 1) * limit;
     
+    const { sortBy = 'id', sortOrder = 'asc' } = req.query;
+    
+    // Handle both single values and arrays correctly
+    const statusValues = Array.isArray(req.query.status) ? req.query.status : 
+                      req.query.status ? [req.query.status] : [];
+
     const locationValues = Array.isArray(req.query.location) ? req.query.location : 
-                           req.query.location ? [req.query.location] : [];
+                          req.query.location ? [req.query.location] : [];
     
     console.log('Status filters:', statusValues);
     console.log('Location filters:', locationValues);
@@ -48,8 +53,18 @@ router.get('/', async (req, res) => {
       filters.location = locationValues;
     }
     
-    const vehicles = await Vehicle.getAllVehicles(sortBy, sortOrder, filters);
+    const { vehicles, totalCount } = await Vehicle.getAllVehicles(
+      sortBy, 
+      sortOrder, 
+      filters,
+      limit,
+      offset
+    );
+    
     const transformedVehicles = vehicles.map(transformVehicleForFrontend);
+    
+    res.set('X-Total-Count', totalCount);
+    res.set('Access-Control-Expose-Headers', 'X-Total-Count');
     
     res.json(transformedVehicles);
   } catch (error) {
@@ -119,7 +134,6 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// Add this to your vehicleRoutes.js file
 router.get('/:id/drivers', async (req, res) => {
   try {
     const vehicleId = parseInt(req.params.id, 10);

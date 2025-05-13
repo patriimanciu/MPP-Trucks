@@ -9,7 +9,8 @@ const __dirname = path.dirname(__filename);
 
 import driverRoutes from './routes/driverRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
-import videoRoutes from './routes/videoRoutes.js'
+import videoRoutes from './routes/videoRoutes.js';
+import statisticsRoutes from './routes/statisticsRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -24,6 +25,7 @@ app.use('/api/videos', videoRoutes);
 app.use('/uploads', express.static('uploads'));
 app.use('/api/drivers', driverRoutes);
 app.use('/api/vehicles', vehicleRoutes);
+app.use('/api/statistics', statisticsRoutes);
 app.get('/api/ping', (req, res) => {
   res.status(200).send('pong');
 });

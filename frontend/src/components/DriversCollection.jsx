@@ -20,7 +20,7 @@ ChartJS.register(ArcElement, Tooltip, Legend, LineElement, CategoryScale, Linear
 const DriversCollection = ({ onAdd, onEdit }) => {
     const getStatusColor = (status) => {
         switch(status.toLowerCase()) {
-          case 'unassigned': return 'bg-green-100 text-green-800';
+          case 'free': return 'bg-green-100 text-green-800';
           case 'assigned': return 'bg-red-100 text-red-800';
           default: return 'bg-gray-100 text-gray-800';
         }
@@ -98,7 +98,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
               setAllDrivers([]);
             }
       
-            localStorage.setItem('drivers', JSON.stringify(drivers));
+            // localStorage.setItem('drivers', JSON.stringify(drivers));
           } catch (error) {
             console.error('Error fetching drivers:', error);
       
@@ -202,7 +202,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
       
                   setAllDrivers((prevDrivers) => {
                     const updatedDrivers = [...prevDrivers, addedDriver];
-                    localStorage.setItem('drivers', JSON.stringify(updatedDrivers));
+                    // localStorage.setItem('drivers', JSON.stringify(updatedDrivers));
                     return updatedDrivers;
                   });
                 } else if (operation.type === 'DELETE') {
@@ -218,7 +218,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
       
                   setAllDrivers((prevDrivers) => {
                     const updatedDrivers = prevDrivers.filter((driver) => driver._id !== operation.id);
-                    localStorage.setItem('drivers', JSON.stringify(updatedDrivers));
+                    // localStorage.setItem('drivers', JSON.stringify(updatedDrivers));
                     return updatedDrivers;
                   });
                 }
@@ -305,12 +305,12 @@ const DriversCollection = ({ onAdd, onEdit }) => {
     };
 
     const generateStatusChartData = (drivers) => {
-        const freeDrivers = drivers.filter((driver) => driver.assigned === 'Unassigned').length;
+        const freeDrivers = drivers.filter((driver) => driver.assigned === 'Free').length;
         const assignedDrivers = drivers.filter((driver) => driver.assigned === 'Assigned').length;
         const onLeaveDrivers = drivers.filter((driver) => driver.assigned === 'On Leave').length;
     
         setStatusChartData({
-          labels: ['Unassigned', 'Assigned', 'On Leave'],
+          labels: ['Free', 'Assigned', 'On Leave'],
           datasets: [
             {
               label: 'Driver Status',
@@ -546,40 +546,93 @@ const DriversCollection = ({ onAdd, onEdit }) => {
             
             {/* Page navigation */}
             {totalPages > 1 && (
-                <div className="flex justify-center mt-8">
-                    <nav className="flex items-center">
-                        <button 
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            className={`px-3 py-1 rounded-l border ${currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
-                        >
-                            Previous
-                        </button>
-                        
-                        <div className="flex">
-                            {[...Array(totalPages)].map((_, i) => (
+            <div className="flex justify-center mt-8">
+                <nav className="flex items-center">
+                    <button 
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-1 rounded-l border ${currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
+                    >
+                        Previous
+                    </button>
+                    
+                    <div className="flex">
+                        {(() => {
+                            const pageButtons = [];
+                            const visiblePages = 5;
+                            
+                            pageButtons.push(
                                 <button
-                                    key={i}
-                                    onClick={() => handlePageChange(i + 1)}
-                                    className={`px-3 py-1 border-t border-b ${currentPage === i + 1 ? 'bg-blue-50 text-blue-600 font-medium' : 'bg-white hover:bg-gray-50'}`}
+                                    key={1}
+                                    onClick={() => handlePageChange(1)}
+                                    className={`px-3 py-1 border-t border-b ${currentPage === 1 ? 'bg-blue-50 text-blue-600 font-medium' : 'bg-white hover:bg-gray-50'}`}
                                 >
-                                    {i + 1}
+                                    1
                                 </button>
-                            ))}
-                        </div>
-                        
-                        <button 
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                            className={`px-3 py-1 rounded-r border ${currentPage === totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
-                        >
-                            Next
-                        </button>
-                    </nav>
+                            );
+                            
+                            let startPage = Math.max(2, currentPage - Math.floor(visiblePages / 2));
+                            let endPage = Math.min(totalPages - 1, startPage + visiblePages - 1);
+                            
+                            if (endPage - startPage < visiblePages - 1) {
+                                startPage = Math.max(2, endPage - visiblePages + 1);
+                            }
+
+                            if (startPage > 2) {
+                                pageButtons.push(
+                                    <span key="ellipsis-1" className="px-3 py-1 border-t border-b">
+                                        …
+                                    </span>
+                                );
+                            }
+                            
+                            for (let i = startPage; i <= endPage; i++) {
+                                pageButtons.push(
+                                    <button
+                                        key={i}
+                                        onClick={() => handlePageChange(i)}
+                                        className={`px-3 py-1 border-t border-b ${currentPage === i ? 'bg-blue-50 text-blue-600 font-medium' : 'bg-white hover:bg-gray-50'}`}
+                                    >
+                                        {i}
+                                    </button>
+                                );
+                            }
+                            
+                            if (endPage < totalPages - 1) {
+                                pageButtons.push(
+                                    <span key="ellipsis-2" className="px-3 py-1 border-t border-b">
+                                        …
+                                    </span>
+                                );
+                            }
+                            
+                            if (totalPages > 1) {
+                                pageButtons.push(
+                                    <button
+                                        key={totalPages}
+                                        onClick={() => handlePageChange(totalPages)}
+                                        className={`px-3 py-1 border-t border-b ${currentPage === totalPages ? 'bg-blue-50 text-blue-600 font-medium' : 'bg-white hover:bg-gray-50'}`}
+                                    >
+                                        {totalPages}
+                                    </button>
+                                );
+                            }
+                            
+                            return pageButtons;
+                        })()}
+                    </div>
+                    
+                    <button 
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className={`px-3 py-1 rounded-r border ${currentPage === totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
+                    >
+                        Next
+                    </button>
+                </nav>
+            </div>)}
                 </div>
-            )}
-        </div>
-    )
-}
+            )
+        }
 
 export default DriversCollection

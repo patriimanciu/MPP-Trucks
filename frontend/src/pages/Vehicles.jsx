@@ -3,10 +3,13 @@ import Title from '../components/Title';
 import VehicleItem from '../components/VehicleItem';
 
 const Vehicles = () => {
-
   const [allVehicles, setAllVehicles] = useState([]);
-  const [displayedVehicles, setDisplayedVehicles] = useState([]);
-  const [itemsPerPage] = useState(32);
+  const [itemsPerPage] = useState(20); // Reasonable number per page
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [totalVehicles, setTotalVehicles] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  
   const [status, setStatus] = useState([]);
   const [location, setLocation] = useState([]);
   const [sortField, setSortField] = useState('brand');
@@ -15,57 +18,68 @@ const Vehicles = () => {
   useEffect(() => {
     const fetchVehicles = async () => {
       try {
-        console.log("Fetching vehicles with filters...");
+        setLoading(true);
+        console.log("Fetching vehicles page", page);
         
-        // Build query parameters
         const params = new URLSearchParams();
         
-        // Add sorting parameters
+        params.append('page', page);
+        params.append('limit', itemsPerPage);
+        
         params.append('sortBy', sortField);
         params.append('sortOrder', sortOrder);
         
-        // Add status filter (if any selected)
         if (status.length > 0) {
-          params.append('status', status.join(','));
+          status.forEach(statusValue => {
+            params.append('status', statusValue);
+          });
         }
         
-        // Add location filter (if any selected)
         if (location.length > 0) {
-          params.append('location', location.join(','));
+          location.forEach(locationValue => {
+            params.append('location', locationValue);
+          });
         }
         
-        // Build the URL with query parameters
         const url = `/api/vehicles${params.toString() ? '?' + params.toString() : ''}`;
         console.log("Fetching from URL:", url);
         
         const response = await fetch(url);
         const data = await response.json();
         
+        // Get total count
+        const total = response.headers.get('X-Total-Count') || data.totalCount || 0;
+        setTotalVehicles(parseInt(total, 10));
+        setTotalPages(Math.ceil(parseInt(total, 10) / itemsPerPage));
+        
         console.log("API response:", data);
         
+        // Set vehicles for this page (don't accumulate)
         if (Array.isArray(data)) {
           setAllVehicles(data);
-          setDisplayedVehicles(data.slice(0, itemsPerPage));
+        } else if (data.vehicles && Array.isArray(data.vehicles)) {
+          setAllVehicles(data.vehicles);
         } else {
           console.error("API didn't return an array:", data);
           setAllVehicles([]);
-          setDisplayedVehicles([]);
         }
       } catch (error) {
         console.error("Error fetching vehicles:", error);
         setAllVehicles([]);
-        setDisplayedVehicles([]);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchVehicles();
-  }, [status, location, sortField, sortOrder, itemsPerPage]); 
+  }, [page, status, location, sortField, sortOrder, itemsPerPage]);
   
   useEffect(() => {
-    setDisplayedVehicles(allVehicles.slice(0, itemsPerPage));
-  }, [allVehicles, itemsPerPage]);
+    setPage(1);
+  }, [status, location, sortField, sortOrder]);
 
   const toggleStatus = (e) => {
+    // Keep this code unchanged
     if (status.includes(e.target.value)) {
       setStatus((prev) => prev.filter((item) => item !== e.target.value));
     } else {
@@ -74,6 +88,7 @@ const Vehicles = () => {
   };
 
   const toggleLocation = (e) => {
+    // Keep this code unchanged
     if (location.includes(e.target.value)) {
       setLocation((prev) => prev.filter((item) => item !== e.target.value));
     } else {
@@ -81,10 +96,24 @@ const Vehicles = () => {
     }
   };
 
+  // Add pagination navigation
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
+  };
+
   return (
     <div className="my-10 pt-16">
       <div className="text-center py-4 text-3xl">
         <Title text={'Vehicles'} />
+      </div>
+      
+      {/* Total count display */}
+      <div className="text-center mb-4">
+        <span className="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
+          Total vehicles: {totalVehicles}
+        </span>
       </div>
 
       {/* Filters */}
@@ -140,12 +169,12 @@ const Vehicles = () => {
               <option value="year-asc">Sort by: Year (Oldest)</option>
             </select>
           </div>
-
-          {/* Rendering Vehicles */}
+          
+          {/* Rendering Vehicles - simplified without ref */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 gap-y-6 ml-4">
-            {displayedVehicles.map((item, index) => (
+            {allVehicles.map((item, index) => (
               <VehicleItem 
-                key={index} 
+                key={index}
                 id={item._id || item.id}
                 image={Array.isArray(item.image) ? item.image : []} 
                 plate={item.plate || ''}
@@ -157,9 +186,98 @@ const Vehicles = () => {
                 location={item.location || ''}
                 assignedTo={item.assignedTo || 'Unavailable'}
                 borderColor={item.borderColor}
-            />
+              />
             ))}
           </div>
+          
+          {/* Loading indicator */}
+          {loading && (
+            <div className="flex justify-center mt-4 mb-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            </div>
+          )}
+          
+          {/* Add traditional pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-6">
+              <nav className="flex items-center">
+                <button 
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 1}
+                  className={`px-3 py-1 rounded-l border ${page === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
+                >
+                  Previous
+                </button>
+                
+                <div className="flex">
+                  {/* First page */}
+                  {page > 2 && (
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      className="px-3 py-1 border-t border-b bg-white hover:bg-gray-50"
+                    >
+                      1
+                    </button>
+                  )}
+                  
+                  {/* Ellipsis */}
+                  {page > 3 && (
+                    <span className="px-3 py-1 border-t border-b">…</span>
+                  )}
+                  
+                  {/* Previous page */}
+                  {page > 1 && (
+                    <button
+                      onClick={() => handlePageChange(page - 1)}
+                      className="px-3 py-1 border-t border-b bg-white hover:bg-gray-50"
+                    >
+                      {page - 1}
+                    </button>
+                  )}
+                  
+                  {/* Current page */}
+                  <button
+                    className="px-3 py-1 border-t border-b bg-blue-50 text-blue-600 font-medium"
+                  >
+                    {page}
+                  </button>
+                  
+                  {/* Next page */}
+                  {page < totalPages && (
+                    <button
+                      onClick={() => handlePageChange(page + 1)}
+                      className="px-3 py-1 border-t border-b bg-white hover:bg-gray-50"
+                    >
+                      {page + 1}
+                    </button>
+                  )}
+                  
+                  {/* Ellipsis */}
+                  {page < totalPages - 2 && (
+                    <span className="px-3 py-1 border-t border-b">…</span>
+                  )}
+                  
+                  {/* Last page */}
+                  {page < totalPages - 1 && (
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      className="px-3 py-1 border-t border-b bg-white hover:bg-gray-50"
+                    >
+                      {totalPages}
+                    </button>
+                  )}
+                </div>
+                
+                <button 
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page === totalPages}
+                  className={`px-3 py-1 rounded-r border ${page === totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
+                >
+                  Next
+                </button>
+              </nav>
+            </div>
+          )}
         </div>
       </div>
     </div>

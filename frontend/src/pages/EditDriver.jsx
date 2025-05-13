@@ -348,7 +348,7 @@ const EditDriver = () => {
                                     onChange={(e) => setDriverToEdit({ ...driverToEdit, assigned: e.target.value })} 
                                     className='w-full border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
                                 >
-                                    <option value="Free">Unassigned</option>
+                                    <option value="Free">Free</option>
                                     <option value="Assigned">Assigned</option>
                                     <option value="On Leave">On Leave</option>
                                 </select>
