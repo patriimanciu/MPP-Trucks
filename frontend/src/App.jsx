@@ -8,7 +8,7 @@ import AddDriver from './pages/AddDriver'
 import EditDriver from './pages/EditDriver'
 import {Toaster} from 'react-hot-toast'
 import { useEffect, useState } from 'react';
-
+import VehicleDetails from './pages/VehicleDetails';
 
 const App = ({ children }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -52,6 +52,7 @@ const App = ({ children }) => {
         <Route path='/drivers' element={<Drivers/>}></Route>
         <Route path="/add-driver" element={<AddDriver />} />
         <Route path="/edit-driver/:id" element={<EditDriver />} />
+        <Route path="/vehicles/:id/drivers" element={<VehicleDetails />} />
       </Routes>
       <Toaster position="top-right" />
     </div>

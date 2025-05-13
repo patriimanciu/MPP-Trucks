@@ -67,7 +67,9 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Vehicle not found' });
     }
     
-    res.json(vehicle);
+    const transformedVehicle = transformVehicleForFrontend(vehicle);
+    
+    res.json(transformedVehicle);
   } catch (error) {
     console.error('Error getting vehicle:', error);
     res.status(500).json({ error: 'Server error' });
@@ -117,14 +119,37 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// Get drivers for a vehicle
+// Add this to your vehicleRoutes.js file
 router.get('/:id/drivers', async (req, res) => {
   try {
-    const drivers = await Vehicle.getVehicleDrivers(req.params.id);
-    res.json(drivers);
+    const vehicleId = parseInt(req.params.id, 10);
+    
+    if (isNaN(vehicleId)) {
+      return res.status(400).json({ error: 'Invalid vehicle ID' });
+    }
+    
+    const drivers = await Vehicle.getVehicleDrivers(vehicleId);
+    
+    // Transform to frontend format
+    const transformedDrivers = drivers.map(driver => ({
+      _id: driver.id,
+      name: driver.name,
+      surname: driver.surname,
+      phone: driver.phone,
+      dateOfBirth: driver.date_of_birth ? new Date(driver.date_of_birth).toISOString().split('T')[0] : '',
+      dateOfHiring: driver.date_of_hiring ? new Date(driver.date_of_hiring).toISOString().split('T')[0] : '',
+      assigned: driver.assigned_status,
+      salary: driver.salary,
+      address: driver.address,
+      image: driver.image_url ? [driver.image_url] : [],
+      isPrimary: driver.is_primary,
+      assignedDate: driver.assigned_date ? new Date(driver.assigned_date).toISOString().split('T')[0] : ''
+    }));
+    
+    res.json(transformedDrivers);
   } catch (error) {
-    console.error('Error getting vehicle drivers:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Error fetching vehicle drivers:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

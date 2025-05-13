@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 
-const VehicleItem = ({plate, brand, model, status, location, assignedTo, image, capacity, year}) => {
+const VehicleItem = ({id ,plate, brand, model, status, location, assignedTo, image, capacity, year}) => {
   const getStatusColor = (status) => {
     switch(status.toLowerCase()) {
       case 'active': return 'bg-green-100 text-green-800';
@@ -18,7 +18,7 @@ const VehicleItem = ({plate, brand, model, status, location, assignedTo, image, 
   };
 
   return (
-    <Link className={`border-2 p-4 rounded ${getBorderColor(capacity)}`} to={`/vehicle/${plate}`}>        <h3 className='font-medium text-lg text-gray-800 text-right'>{plate}</h3>
+    <Link className={`border-2 p-4 rounded ${getBorderColor(capacity)}`} to={`/vehicles/${id}/drivers`}>        <h3 className='font-medium text-lg text-gray-800 text-right'>{plate}</h3>
         <div className='overflow-hidden'>
             <img className='hover:scale-110 transition ease-in-out' src={image[0]}></img>
         </div>
