@@ -14,10 +14,12 @@ import {
   LinearScale,
   PointElement,
 } from 'chart.js';
+import { useAuth } from '../context/AuthContext'
 
 ChartJS.register(ArcElement, Tooltip, Legend, LineElement, CategoryScale, LinearScale, PointElement);
 
 const DriversCollection = ({ onAdd, onEdit }) => {
+    const {getAuthHeaders} = useAuth();
     const getStatusColor = (status) => {
         switch(status.toLowerCase()) {
           case 'free': return 'bg-green-100 text-green-800';
@@ -85,7 +87,11 @@ const DriversCollection = ({ onAdd, onEdit }) => {
           }
       
           try {
-            const response = await fetch('/api/drivers');
+            const response = await fetch('/api/drivers', {
+              headers: {
+                ...getAuthHeaders()
+              }
+            });
             if (!response.ok) {
               throw new Error('Failed to fetch drivers');
             }
@@ -93,6 +99,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
             console.log('Fetched drivers from API:', drivers);
             if (Array.isArray(drivers)) {
               setAllDrivers(drivers);
+              setDrivers(drivers);
             } else {
               console.error('Expected drivers array but got:', drivers);
               setAllDrivers([]);
@@ -115,7 +122,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         };
       
         fetchDrivers();
-      }, [setDrivers]);
+      }, [setDrivers, getAuthHeaders]);
 
       useEffect(() => {
         const ws = new WebSocket(`ws://${window.location.hostname}:5001`);
@@ -287,6 +294,9 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         try {
           const response = await fetch(`/api/drivers/${driverId}`, {
             method: 'DELETE',
+            headers: {
+              ...getAuthHeaders()
+            }
           });
           if (!response.ok) {
             throw new Error('Failed to delete driver');

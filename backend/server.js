@@ -11,6 +11,7 @@ import driverRoutes from './routes/driverRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
 import videoRoutes from './routes/videoRoutes.js';
 import statisticsRoutes from './routes/statisticsRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -26,6 +27,7 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/drivers', driverRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/statistics', statisticsRoutes);
+app.use('/api/users', userRoutes);
 app.get('/api/ping', (req, res) => {
   res.status(200).send('pong');
 });

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 import { DriversContext } from '../context/DriversContext'
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 
 const EditDriver = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     // const { setDrivers } = useContext(DriversContext);
-    
+    const { getAuthHeaders } = useAuth();
     const [driverToEdit, setDriverToEdit] = useState({
         name: '',
         surname: '',
@@ -25,20 +26,28 @@ const EditDriver = () => {
     useEffect(() => {
         const checkServerStatus = async () => {
             try {
-                const response = await fetch('/api/ping');
+                const response = await fetch('/api/ping', {
+                    headers: {
+                        ...getAuthHeaders()
+                    }
+                });
                 setIsServerReachable(response.ok);
             } catch {
                 setIsServerReachable(false);
             }
         };
         checkServerStatus();
-    }, []);
+    }, [getAuthHeaders]);
 
     useEffect(() => {
         console.log('Fetching driver with ID:', id);
         const fetchDriver = async () => {
           try {
-            const response = await fetch(`/api/drivers/${id}`);
+            const response = await fetch(`/api/drivers/${id}`, {
+                headers: {
+                    ...getAuthHeaders()
+                },
+            });
             if (!response.ok) {
               throw new Error('Driver not found');
             }
@@ -65,7 +74,7 @@ const EditDriver = () => {
         };
       
         fetchDriver();
-      }, [id, navigate]);
+      }, [id, navigate, getAuthHeaders]);
 
     const validateDriver = (driver) => {
         let errors = {};
@@ -177,6 +186,7 @@ const EditDriver = () => {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...getAuthHeaders()
                 },
                 body: JSON.stringify(apiDriver),
             });

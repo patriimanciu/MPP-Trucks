@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { useAuth } from '../context/AuthContext';
 
 const VehicleDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { getAuthHeaders } = useAuth();
   const [vehicle, setVehicle] = useState(null);
   const [assignedDrivers, setAssignedDrivers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -15,7 +17,11 @@ const VehicleDetails = () => {
         setIsLoading(true);
         
         // Fetch vehicle details
-        const vehicleResponse = await fetch(`/api/vehicles/${id}`);
+        const vehicleResponse = await fetch(`/api/vehicles/${id}`, {
+          headers: {
+            ...getAuthHeaders()
+          }
+        });
         
         if (!vehicleResponse.ok) {
           throw new Error('Failed to fetch vehicle details');
@@ -25,7 +31,11 @@ const VehicleDetails = () => {
         setVehicle(vehicleData);
         
         // Fetch assigned drivers
-        const driversResponse = await fetch(`/api/vehicles/${id}/drivers`);
+        const driversResponse = await fetch(`/api/vehicles/${id}/drivers`, {
+          headers: {
+            ...getAuthHeaders()
+          }
+        });
         
         if (!driversResponse.ok) {
           throw new Error('Failed to fetch vehicle drivers');
@@ -36,7 +46,12 @@ const VehicleDetails = () => {
         setAssignedDrivers(driversData);
       } catch (error) {
         console.error('Error fetching vehicle details:', error);
-        toast.error('Failed to load vehicle details');
+        if (error.message.includes('401')) {
+          toast.error('Authentication required. Please log in again.');
+          navigate('/login');
+        } else {
+          toast.error('Failed to load vehicle details');
+        }
       } finally {
         setIsLoading(false);
       }
@@ -45,7 +60,7 @@ const VehicleDetails = () => {
     if (id) {
       fetchVehicleDetails();
     }
-  }, [id]);
+  }, [id, getAuthHeaders, navigate]);
 
   useEffect(() => {
     if (vehicle) {

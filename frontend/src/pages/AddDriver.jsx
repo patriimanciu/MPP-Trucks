@@ -2,10 +2,12 @@ import React, { useContext, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { DriversContext } from '../context/DriversContext';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 
 const AddDriver = () => {
     const navigate = useNavigate();
     const { setDrivers } = useContext(DriversContext);
+    const { getAuthHeaders } = useAuth();
     const [newDriver, setNewDriver] = useState({
         name: '',
         surname: '',
@@ -39,14 +41,18 @@ const AddDriver = () => {
     useEffect(() => {
         const checkServerStatus = async () => {
             try {
-                const response = await fetch('/api/ping');
+                const response = await fetch('/api/ping', {
+                    headers: {
+                        ...getAuthHeaders()
+                    }
+                });
                 setIsServerReachable(response.ok);
             } catch {
                 setIsServerReachable(false);
             }
         };
         checkServerStatus();
-    }, []);
+    }, [getAuthHeaders]);
 
     // Update your validateDriver function
     const validateDriver = (driver) => {
@@ -146,6 +152,9 @@ const AddDriver = () => {
                 
                 const response = await fetch('/api/drivers/upload', {
                     method: 'POST',
+                    headers: {
+                        ...getAuthHeaders()
+                    },
                     body: formData,
                 });
                 
@@ -166,7 +175,9 @@ const AddDriver = () => {
                 
                 const response = await fetch('/api/drivers', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json',
+                        ...getAuthHeaders()
+                     },
                     body: JSON.stringify(driverData),
                 });
                 

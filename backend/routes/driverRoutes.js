@@ -1,5 +1,7 @@
 import express from 'express';
 import * as Driver from '../models/Driver.js';
+import { auth, authorize } from '../auth.js';
+import { logActivity } from '../logger.js';
 import multer from 'multer';
 import path from 'path';
 
@@ -16,6 +18,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 const router = express.Router();
+
+router.use(auth);
+router.use(logActivity('driver'));
 function transformDriverForFrontend(driver) {
   return {
     _id: driver.id,
@@ -52,7 +57,13 @@ function transformDriverForDatabase(driver) {
 // Get all drivers
 router.get('/', async (req, res) => {
   try {
-    const drivers = await Driver.getAllDrivers();
+    let drivers;
+    if (req.userRole === 'admin') {
+      drivers = await Driver.getAllDrivers();
+    } else {
+      drivers = await Driver.getDriversByUserId(req.userId);
+    }
+    
     const transformedDrivers = drivers.map(transformDriverForFrontend);
     res.json(transformedDrivers);
   } catch (error) {

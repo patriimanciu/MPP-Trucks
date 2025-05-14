@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import Title from '../components/Title';
 import VehicleItem from '../components/VehicleItem';
+import { useAuth } from '../context/AuthContext'; 
 
 const Vehicles = () => {
+  const { getAuthHeaders } = useAuth();
   const [allVehicles, setAllVehicles] = useState([]);
   const [itemsPerPage] = useState(20); // Reasonable number per page
   const [page, setPage] = useState(1);
@@ -43,8 +45,20 @@ const Vehicles = () => {
         
         const url = `/api/vehicles${params.toString() ? '?' + params.toString() : ''}`;
         console.log("Fetching from URL:", url);
+        console.log("Auth headers:", getAuthHeaders());
         
-        const response = await fetch(url);
+        // Add auth headers to the fetch call
+        const response = await fetch(url, {
+          headers: {
+            ...getAuthHeaders()
+          }
+        });
+
+        if (!response.ok) {
+          console.error("API error:", response.status);
+          throw new Error(`API returned ${response.status}`);
+        }
+        
         const data = await response.json();
         
         // Get total count
@@ -72,7 +86,7 @@ const Vehicles = () => {
     };
 
     fetchVehicles();
-  }, [page, status, location, sortField, sortOrder, itemsPerPage]);
+  }, [page, status, location, sortField, sortOrder, itemsPerPage, getAuthHeaders]);
   
   useEffect(() => {
     setPage(1);

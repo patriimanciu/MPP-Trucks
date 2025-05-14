@@ -1,7 +1,12 @@
 import express from 'express';
 import * as Vehicle from '../models/Vehicle.js';
+import { auth, authorize } from '../auth.js';
+import { logActivity } from '../logger.js';
 
 const router = express.Router();
+
+router.use(auth);
+router.use(logActivity('vehicle'));
 
 function transformVehicleForFrontend(vehicle) {
   return {
