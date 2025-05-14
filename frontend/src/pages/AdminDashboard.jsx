@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import MonitoredUsers from '../components/MonitoredUsers';
+import AttackSimulator from '../components/AttackSimulator';
+import toast from 'react-hot-toast';
 
 const AdminDashboard = () => {
   const [logs, setLogs] = useState([]);
@@ -8,48 +11,101 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('logs');
   
   const { getAuthHeaders } = useAuth();
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      if (activeTab === 'logs') {
+        const response = await fetch('/api/users/all-logs', {
+          headers: {
+            ...getAuthHeaders(),
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setLogs(data);
+        }
+      } else if (activeTab === 'users') {
+        const response = await fetch('/api/users', {
+          headers: {
+            ...getAuthHeaders(),
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setUsers(data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        
-        if (activeTab === 'logs') {
-          const response = await fetch('/api/users/all-logs', {
-            headers: {
-              ...getAuthHeaders(),
-            },
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            setLogs(data);
-          }
-        } else if (activeTab === 'users') {
-          const response = await fetch('/api/users', {
-            headers: {
-              ...getAuthHeaders(),
-            },
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            setUsers(data);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchData();
   }, [activeTab, getAuthHeaders]);
+
+  const refreshData = () => {
+    fetchData();
+  };
   
+  const resetMonitoring = async (clearLogs = false) => {
+    try {
+      if (!confirm('Are you sure you want to reset security monitoring data?')) {
+        return;
+      }
+      
+      setLoading(true);
+      
+      const response = await fetch('/api/security/reset-monitoring', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ clearLogs })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to reset monitoring data');
+      }
+      
+      toast.success('Security monitoring data reset successfully');
+      fetchData();
+    } catch (error) {
+      console.error('Error resetting monitoring:', error);
+      toast.error(error.message || 'Failed to reset monitoring');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+
+
+      <button
+        onClick={() => resetMonitoring(false)}
+        className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded ml-2"
+      >
+        Reset Monitoring
+      </button>
+
+      <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+        <h2 className="text-xl font-bold mb-4">Security Monitoring</h2>
+        <MonitoredUsers />
+      </div>
+      
+      <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+        <h2 className="text-xl font-bold mb-4">Security Testing</h2>
+        <AttackSimulator onSimulationComplete={refreshData} />
+      </div>
       
       <div className="mb-6">
         <div className="border-b border-gray-200">

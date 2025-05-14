@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext';
 const EditDriver = () => {
     const navigate = useNavigate();
     const { id } = useParams();
-    // const { setDrivers } = useContext(DriversContext);
     const { getAuthHeaders } = useAuth();
     const [driverToEdit, setDriverToEdit] = useState({
         name: '',
@@ -143,7 +142,6 @@ const EditDriver = () => {
             return;
         }
 
-        // Format the data properly for API using your prepared apiDriver
         const apiDriver = {
             ...driverToEdit,
             image: Array.isArray(driverToEdit.image) ? 
@@ -153,14 +151,13 @@ const EditDriver = () => {
         
         console.log('Sending data to API:', apiDriver);
 
-        // For offline handling - no changes needed
         if (!navigator.onLine || !isServerReachable) {
             console.log('Offline or server unreachable. Queuing operation.');
-            const { ...driverWithoutFile } = apiDriver; // Use apiDriver here
+            const { ...driverWithoutFile } = apiDriver; 
             const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
             queuedOperations.push({
                 type: 'UPDATE',
-                id: apiDriver._id, // Use consistent field
+                id: apiDriver._id,
                 payload: driverWithoutFile,
             });
             localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
@@ -173,7 +170,6 @@ const EditDriver = () => {
         try {
             console.log('Online and server reachable. Proceeding with API call.');
             
-            // Make sure we have a clean numeric ID
             const driverId = parseInt(apiDriver._id.toString(), 10);
             if (isNaN(driverId)) {
                 throw new Error('Invalid driver ID');
@@ -181,7 +177,6 @@ const EditDriver = () => {
             
             console.log('Using driver ID for API:', driverId);
             
-            // Send as JSON
             const response = await fetch(`/api/drivers/${driverId}`, {
                 method: 'PUT',
                 headers: {
@@ -192,7 +187,6 @@ const EditDriver = () => {
             });
 
             if (!response.ok) {
-                // Try to get error message
                 const errorData = await response.json().catch(() => null);
                 const errorMessage = errorData?.error || `${response.status} ${response.statusText}`;
                 throw new Error(`Failed to update driver: ${errorMessage}`);

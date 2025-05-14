@@ -61,7 +61,6 @@ const AddDriver = () => {
         checkServerStatus();
     }, [getAuthHeaders]);
 
-    // Update your validateDriver function
     const validateDriver = (driver) => {
         let errors = {};
         if (!driver.name || driver.name.length < 2) errors.name = 'Name is required (min 2 characters)';
@@ -95,29 +94,23 @@ const AddDriver = () => {
         return;
         }
     
-        // Create a formatted driver object for consistency
         const driverToSave = {
         ...newDriver,
         created_by: currentUser?.id,
-        // Ensure the image is always an array for consistency
         image: imagePreview ? [imagePreview] : []
         };
         
-        // Offline flow
         if (!navigator.onLine || !isServerReachable) {
         console.log('Adding driver in offline mode');
         
-        // Create a temporary ID
         const tempId = `temp_${Date.now()}`;
         const offlineDriver = {
             ...driverToSave,
             _id: tempId
         };
         
-        // Save to offline queue
         const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
         
-        // Check for duplicates
         const isDuplicate = queuedOperations.some(
             (op) => op.type === 'CREATE' && 
             op.payload.name === newDriver.name && 
@@ -130,18 +123,16 @@ const AddDriver = () => {
             return;
         }
         
-        // Add to queue with file info if available
         queuedOperations.push({
             type: 'CREATE',
             payload: driverToSave,
             tempId: tempId,
-            hasFile: !!selectedFile, // Flag to indicate file needs upload when online
+            hasFile: !!selectedFile,
             fileName: selectedFile?.name
         });
     
         localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
         
-        // Update local state
         setDrivers((prevDrivers) => [...prevDrivers, offlineDriver]);
         
         toast.success(`${newDriver.name} ${newDriver.surname} was added locally. Changes will sync when back online.`);
@@ -153,7 +144,6 @@ const AddDriver = () => {
         try {
             console.log('Adding driver in online mode');
             
-            // If we have a file, use FormData
             if (selectedFile) {
                 const formData = new FormData();
                 formData.append('file', selectedFile);
@@ -176,11 +166,10 @@ const AddDriver = () => {
                 setDrivers((prevDrivers) => [...prevDrivers, addedDriver]);
                 toast.success(`${addedDriver.name} ${addedDriver.surname} was added successfully.`);
             } else {
-                // No file, use regular JSON API with empty image array
                 const driverData = {
                     ...driverToSave,
                     created_by: currentUser?.id,
-                    image: [] // Explicitly set empty array for no image
+                    image: []
                 };
                 
 
@@ -228,12 +217,11 @@ const AddDriver = () => {
                 if (operation.type === 'CREATE') {
                     console.log('Syncing operation:', operation);
                     
-                    // Choose endpoint based on whether this operation has a file
                     let response;
                     
                     const payloadWithSafeImage = {
                         ...operation.payload,
-                        image: operation.payload.image || [] // Ensure image is always an array
+                        image: operation.payload.image || [] 
                     };
                     
                     response = await fetch('/api/drivers', {
@@ -251,14 +239,11 @@ const AddDriver = () => {
         
                     const addedDriver = await response.json();
                     
-                    // Update local state - remove temp and add real
                     setDrivers((prevDrivers) => {
-                    // Filter out temp version if it exists
                     const filtered = operation.tempId ? 
                         prevDrivers.filter(d => d._id !== operation.tempId) : 
                         prevDrivers;
                     
-                    // Add the real driver from server  
                     return [...filtered, addedDriver];
                     });
                     

@@ -8,6 +8,9 @@ export default defineConfig({
     environment: 'jsdom',
   },
   assetsInclude: ['**/*.svg', '**/*.jpg'],
+  optimizeDeps: {
+    exclude: ['pg', 'pg-cloudflare']
+  },
   server: {
     proxy: {
       '/api': 'http://localhost:5001',

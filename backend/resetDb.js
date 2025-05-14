@@ -15,6 +15,7 @@ async function resetDatabase() {
     console.log('Dropping tables...');
     await query(`
       DROP TABLE IF EXISTS driver_vehicles CASCADE;
+      DROP TABLE IF EXISTS monitored_users CASCADE;
       DROP TABLE IF EXISTS vehicles CASCADE;
       DROP TABLE IF EXISTS drivers CASCADE;
     `);

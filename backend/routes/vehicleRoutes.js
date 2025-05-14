@@ -38,7 +38,6 @@ router.get('/', async (req, res) => {
     
     const { sortBy = 'id', sortOrder = 'asc' } = req.query;
     
-    // Handle both single values and arrays correctly
     const statusValues = Array.isArray(req.query.status) ? req.query.status : 
                       req.query.status ? [req.query.status] : [];
 
@@ -149,7 +148,6 @@ router.get('/:id/drivers', async (req, res) => {
     
     const drivers = await Vehicle.getVehicleDrivers(vehicleId);
     
-    // Transform to frontend format
     const transformedDrivers = drivers.map(driver => ({
       _id: driver.id,
       name: driver.name,

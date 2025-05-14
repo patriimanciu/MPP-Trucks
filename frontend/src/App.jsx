@@ -55,11 +55,6 @@ const App = ({ children }) => {
           {/* Authentication routes */}
           <Route path='/login' element={<Login />} />
           <Route path='/register' element={<Register />} />
-          {/* <Route path='/dashboard' element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } /> */}
           <Route path='/admin' element={
             <ProtectedRoute adminOnly={true}>
               <AdminDashboard />

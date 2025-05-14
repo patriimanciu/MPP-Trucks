@@ -16,7 +16,6 @@ const VehicleDetails = () => {
       try {
         setIsLoading(true);
         
-        // Fetch vehicle details
         const vehicleResponse = await fetch(`/api/vehicles/${id}`, {
           headers: {
             ...getAuthHeaders()
@@ -30,7 +29,6 @@ const VehicleDetails = () => {
         const vehicleData = await vehicleResponse.json();
         setVehicle(vehicleData);
         
-        // Fetch assigned drivers
         const driversResponse = await fetch(`/api/vehicles/${id}/drivers`, {
           headers: {
             ...getAuthHeaders()
