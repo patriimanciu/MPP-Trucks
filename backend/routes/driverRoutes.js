@@ -36,7 +36,8 @@ function transformDriverForFrontend(driver) {
     address: driver.address,
     image: Array.isArray(driver.image_url) ? 
       driver.image_url : 
-      driver.image_url ? [driver.image_url] : []
+      driver.image_url ? [driver.image_url] : [],
+    created_by: driver.created_by
   };
 }
 
@@ -88,46 +89,35 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
-    const driverData = req.body;
-    console.log('Raw driver data from frontend:', driverData);
+    console.log('Received driver data:', req.body);
     
-    let formattedBirthDate = null;
-    if (driverData.dateOfBirth) {
-      formattedBirthDate = driverData.dateOfBirth;
-      console.log('Formatted birth date:', formattedBirthDate);
-    }
+    // Safe image handling - check if array exists AND has elements
+    const hasImage = req.body.image && 
+                    Array.isArray(req.body.image) && 
+                    req.body.image.length > 0;
     
-    let formattedHiringDate = null;
-    if (driverData.dateOfHiring) {
-      formattedHiringDate = driverData.dateOfHiring;
-      console.log('Formatted hiring date:', formattedHiringDate);
-    }
-    
-    const dbDriver = {
-      name: driverData.name,
-      surname: driverData.surname,
-      phone: driverData.phone,
-      date_of_birth: formattedBirthDate,
-      date_of_hiring: formattedHiringDate,
-      assigned_status: driverData.assigned || 'Free',
-      salary: driverData.salary || '',
-      address: driverData.address || '',
-      image_url: Array.isArray(driverData.image) && driverData.image.length > 0 
-        ? driverData.image[0] 
-        : null
+    const driverData = {
+      name: req.body.name,
+      surname: req.body.surname,
+      phone: req.body.phone,
+      date_of_birth: req.body.dateOfBirth,
+      date_of_hiring: req.body.dateOfHiring,
+      assigned_status: req.body.assigned,
+      address: req.body.address,
+      // Safely access image[0] only if it exists
+      image_url: hasImage ? req.body.image[0] : null,
+      created_by: req.body.created_by || req.userId
     };
     
-    console.log('Prepared driver data for database:', dbDriver);
+    console.log('Processed driver data:', driverData);
     
-    const createdDriver = await Driver.createDriver(dbDriver);
-    
-    const responseData = transformDriverForFrontend(createdDriver);
-    res.status(201).json(responseData);
+    const driver = await Driver.createDriver(driverData);
+    res.status(201).json(driver);
   } catch (error) {
     console.error('Error creating driver:', error);
-    res.status(500).json({ message: error.message || 'Error creating driver' });
+    res.status(500).json({ message: error.message || 'Failed to create driver' });
   }
 });
 

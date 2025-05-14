@@ -63,7 +63,8 @@ async function initDatabase() {
       
       await query(
         'INSERT INTO users (email, password, first_name, last_name, role) VALUES ($1, $2, $3, $4, $5)',
-        ['user@example.com', hashedPassword, 'Regular', 'User', 'user']
+        ['user@example.com', hashedPassword, 'Regular', 'User', 'user'],
+        ['user2@example.com', hashedPassword, 'Regular', 'User', 'user'],
       );
       console.log('Regular user created');
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom';
-import DriversCollection from '../components/DriversCollection'
+import DriversCollection from '../components/DriversCollection';
+import { useAuth } from '../context/AuthContext';
 
 const Drivers = () => {
   const navigate = useNavigate();
@@ -9,6 +10,9 @@ const Drivers = () => {
     navigate('/add-driver');
   };
 
+
+  const { getAuthHeaders } = useAuth();
+
   const handleEditDriver = (driverId) => {
     navigate(`/edit-driver/${driverId}`);
   };
@@ -16,7 +20,11 @@ const Drivers = () => {
   useEffect(() => {
     const checkServerStatus = async () => {
       try {
-        const response = await fetch('/api/ping');
+        const response = await fetch('/api/ping', {
+          headers: {
+            ...getAuthHeaders()
+          }}
+        );
         const serverIsReachable = response.ok;
         setIsServerReachable(serverIsReachable);
     
@@ -31,7 +39,9 @@ const Drivers = () => {
                 console.log('Syncing UPDATE operation:', operation);
                 const response = await fetch(`http://localhost:5001/api/drivers/${operation.id}`, {
                   method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 'Content-Type': 'application/json',
+                    ...getAuthHeaders()
+                   },
                   body: JSON.stringify(operation.payload),
                 });
     
@@ -42,7 +52,9 @@ const Drivers = () => {
                 console.log('Syncing CREATE operation:', operation);
                 const response = await fetch('http://localhost:5001/api/drivers', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 'Content-Type': 'application/json',
+                    ...getAuthHeaders()
+                   },
                   body: JSON.stringify(operation.payload),
                 });
     
@@ -83,7 +95,7 @@ const Drivers = () => {
     const interval = setInterval(checkServerStatus, 5000);
   
     return () => clearInterval(interval);
-  }, []);
+  }, [getAuthHeaders]);
 
   return (
     <div>

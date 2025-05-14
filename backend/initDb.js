@@ -423,21 +423,57 @@ const vehicleData = [
     }
 ];
 
+import bcrypt from 'bcrypt';
+
 async function seedData() {
   try {
+    // Check if we already have data
     const result = await query('SELECT COUNT(*) FROM drivers');
     if (parseInt(result.rows[0].count) > 0) {
       console.log('Database already has data, skipping seed');
       return;
     }
     
-    console.log('Seeding database with drivers and vehicles...');
+    console.log('Seeding database with users, drivers, and vehicles...');
     
-    for (const driver of driverData) {
+    // Create users first
+    const adminSalt = await bcrypt.genSalt(10);
+    const adminPassword = await bcrypt.hash('admin123', adminSalt);
+    
+    const user1Salt = await bcrypt.genSalt(10);
+    const user1Password = await bcrypt.hash('user123', user1Salt);
+
+    const user2Salt = await bcrypt.genSalt(10);
+    const user2Password = await bcrypt.hash('user123', user2Salt);
+    
+    const adminResult = await query(
+      'INSERT INTO users (email, password, first_name, last_name, role) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      ['admin@example.com', adminPassword, 'Admin', 'User', 'admin']
+    );
+    const adminId = adminResult.rows[0].id;
+    
+    const userResult = await query(
+      'INSERT INTO users (email, password, first_name, last_name, role) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      ['user@example.com', user1Password, 'Regular', 'User', 'user']
+    );
+    const userId = userResult.rows[0].id;
+
+    const user2Result = await query(
+      'INSERT INTO users (email, password, first_name, last_name, role) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      ['user2@example.com', user2Password, 'Regular', 'User', 'user']
+    );
+    const user2Id = user2Result.rows[0].id;
+    
+    console.log('Users created successfully');
+    
+    for (let i = 0; i < driverData.length; i++) {
+      const driver = driverData[i];
+      const ownerId = i % 2 === 0 ? user2Id : userId;
+      
       await query(
         `INSERT INTO drivers 
-         (id, name, surname, phone, date_of_birth, date_of_hiring, assigned_status, salary, address, image_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+         (id, name, surname, phone, date_of_birth, date_of_hiring, assigned_status, salary, address, image_url, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           driver._id,
           driver.name,
@@ -448,20 +484,23 @@ async function seedData() {
           driver.assigned === 'Assigned' ? 'Assigned' : 'Free', 
           driver.salary,
           driver.address,
-          driver.image[0]
+          driver.image[0],
+          ownerId
         ]
       );
     }
     
     await query("SELECT setval('drivers_id_seq', (SELECT MAX(id) FROM drivers))");
-    
     console.log('Drivers imported successfully');
     
-    for (const vehicle of vehicleData) {
+    for (let i = 0; i < vehicleData.length; i++) {
+      const vehicle = vehicleData[i];
+      const ownerId = i % 2 === 0 ? user2Id : userId;
+      
       await query(
         `INSERT INTO vehicles
-         (id, plate, type, brand, model, year, status, location, last_update, capacity, fuel, mileage, maintenance, insurance, best, image_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+         (id, plate, type, brand, model, year, status, location, last_update, capacity, fuel, mileage, maintenance, insurance, best, image_url, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
         [
           vehicle._id,
           vehicle.plate,
@@ -478,13 +517,13 @@ async function seedData() {
           vehicle.maintenance,
           vehicle.insurance,
           vehicle.best,
-          vehicle.image[0]
+          vehicle.image[0],
+          ownerId
         ]
       );
     }
     
     await query("SELECT setval('vehicles_id_seq', (SELECT MAX(id) FROM vehicles))");
-    
     console.log('Vehicles imported successfully');
     
     console.log('Creating driver-vehicle relationships...');
@@ -515,6 +554,20 @@ async function seedData() {
     }
     
     console.log('Data seeding completed successfully');
+    
+    console.log('-------------------------------------------');
+    console.log('Admin credentials:');
+    console.log('Email: admin@example.com');
+    console.log('Password: admin123');
+    console.log('-------------------------------------------');
+    console.log('Regular user credentials:');
+    console.log('Email: user@example.com');
+    console.log('Password: user123');
+    console.log('-------------------------------------------');
+    console.log('Regular user credentials:');
+    console.log('Email: user2@example.com');
+    console.log('Password: user123');
+    console.log('-------------------------------------------');
   } catch (error) {
     console.error('Error seeding data:', error);
     throw error;

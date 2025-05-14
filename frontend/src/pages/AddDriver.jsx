@@ -7,7 +7,13 @@ import { useAuth } from '../context/AuthContext';
 const AddDriver = () => {
     const navigate = useNavigate();
     const { setDrivers } = useContext(DriversContext);
-    const { getAuthHeaders } = useAuth();
+    const { getAuthHeaders, currentUser } = useAuth();
+    useEffect(() => {
+        if (!currentUser) {
+            toast.error('You must be logged in to add drivers');
+            navigate('/login');
+        }
+    }, [currentUser, navigate]);
     const [newDriver, setNewDriver] = useState({
         name: '',
         surname: '',
@@ -17,6 +23,7 @@ const AddDriver = () => {
         dateOfHiring: '',
         address: '',
         assigned: 'Free',
+        created_by: currentUser?.id || 'N/A'
     });
 
     const [errors, setErrors] = useState({});
@@ -79,6 +86,7 @@ const AddDriver = () => {
     const handleAddDriver = async () => {
         if (isLoading) return;
         setIsLoading(true);
+        console.log('Current user:', currentUser);
 
         const validationErrors = validateDriver(newDriver);
         if (Object.keys(validationErrors).length > 0) {
@@ -90,6 +98,7 @@ const AddDriver = () => {
         // Create a formatted driver object for consistency
         const driverToSave = {
         ...newDriver,
+        created_by: currentUser?.id,
         // Ensure the image is always an array for consistency
         image: imagePreview ? [imagePreview] : []
         };
@@ -170,17 +179,21 @@ const AddDriver = () => {
                 // No file, use regular JSON API with empty image array
                 const driverData = {
                     ...driverToSave,
+                    created_by: currentUser?.id,
                     image: [] // Explicitly set empty array for no image
                 };
                 
+
+                console.log('Sending driver data:', driverData);
                 const response = await fetch('/api/drivers', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json',
+                    headers: { 
+                        'Content-Type': 'application/json',
                         ...getAuthHeaders()
-                     },
+                    },
                     body: JSON.stringify(driverData),
                 });
-                
+                console.log('API response status:', response.status);
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
                     throw new Error(errorData.message || 'Failed to add driver');
@@ -218,20 +231,19 @@ const AddDriver = () => {
                     // Choose endpoint based on whether this operation has a file
                     let response;
                     
-                    if (operation.hasFile) {
-                    // This requires the user to select the file again
-                    // In a real app, you'd store the file in IndexedDB or similar
-                    toast.warning(`Please re-upload the file for driver: ${operation.payload.name} ${operation.payload.surname}`);
-                    remainingOperations.push(operation);
-                    continue;
-                    } else {
-                    // Standard API without file
+                    const payloadWithSafeImage = {
+                        ...operation.payload,
+                        image: operation.payload.image || [] // Ensure image is always an array
+                    };
+                    
                     response = await fetch('/api/drivers', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(operation.payload),
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            ...getAuthHeaders()
+                        },
+                        body: JSON.stringify(payloadWithSafeImage),
                     });
-                    }
         
                     if (!response.ok) {
                     throw new Error('Failed to sync operation');

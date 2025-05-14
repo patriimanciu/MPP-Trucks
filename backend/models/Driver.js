@@ -46,34 +46,33 @@ export async function getDriverById(id) {
   }
 }
 
-// Create a new driver
-export async function createDriver(driverData) {
+export async function getDriversByUserId(userId) {
+  const result = await query('SELECT * FROM drivers WHERE created_by = $1', [userId]);
+  return result.rows;
+}
+
+export async function createDriver(driver) {
   try {
-    console.log('Creating driver with data:', driverData);
+    // No need to process image here - already handled in route
+    const result = await query(
+      `INSERT INTO drivers 
+       (name, surname, phone, date_of_birth, date_of_hiring, assigned_status, 
+        address, image_url, created_by) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+       RETURNING *`,
+      [
+        driver.name,
+        driver.surname,
+        driver.phone,
+        driver.date_of_birth,
+        driver.date_of_hiring,
+        driver.assigned_status,
+        driver.address,
+        driver.image_url, // Already processed to be null if no image
+        driver.created_by
+      ]
+    );
     
-    const queryText = `
-      INSERT INTO drivers (
-        name, surname, phone, date_of_birth, date_of_hiring, 
-        assigned_status, salary, address, image_url
-      ) VALUES ($1, $2, $3, $4::date, $5::date, $6, $7, $8, $9)
-      RETURNING *
-    `;
-    
-    const values = [
-      driverData.name,
-      driverData.surname,
-      driverData.phone,
-      driverData.date_of_birth,
-      driverData.date_of_hiring,
-      driverData.assigned_status,
-      driverData.salary,
-      driverData.address,
-      driverData.image_url
-    ];
-    
-    console.log('Query values:', values);
-    const result = await query(queryText, values);
-    console.log('Insert result:', result.rows[0]);
     return result.rows[0];
   } catch (error) {
     console.error('Error in createDriver:', error);
