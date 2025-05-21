@@ -48,7 +48,7 @@ const AddDriver = () => {
     useEffect(() => {
         const checkServerStatus = async () => {
             try {
-                const response = await fetch('/api/ping', {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/ping`, {
                     headers: {
                         ...getAuthHeaders()
                     }
@@ -149,7 +149,7 @@ const AddDriver = () => {
                 formData.append('file', selectedFile);
                 formData.append('driver', JSON.stringify(driverToSave));
                 
-                const response = await fetch('/api/drivers/upload', {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers/upload`, {
                     method: 'POST',
                     headers: {
                         ...getAuthHeaders()
@@ -174,7 +174,7 @@ const AddDriver = () => {
                 
 
                 console.log('Sending driver data:', driverData);
-                const response = await fetch('/api/drivers', {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -224,7 +224,7 @@ const AddDriver = () => {
                         image: operation.payload.image || [] 
                     };
                     
-                    response = await fetch('/api/drivers', {
+                    response = await fetch(`${import.meta.env.VITE_API_URL}/drivers`, {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',

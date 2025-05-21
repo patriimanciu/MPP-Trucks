@@ -25,7 +25,7 @@ const EditDriver = () => {
     useEffect(() => {
         const checkServerStatus = async () => {
             try {
-                const response = await fetch('/api/ping', {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/ping`, {
                     headers: {
                         ...getAuthHeaders()
                     }
@@ -42,7 +42,7 @@ const EditDriver = () => {
         console.log('Fetching driver with ID:', id);
         const fetchDriver = async () => {
           try {
-            const response = await fetch(`/api/drivers/${id}`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers/${id}`, {
                 headers: {
                     ...getAuthHeaders()
                 },
@@ -104,7 +104,7 @@ const EditDriver = () => {
                                 formData.append('file', operation.payload.imageFile);
                             }
     
-                            const response = await fetch(`/api/drivers/${operation.id}`, {
+                            const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers/${operation.id}`, {
                                 method: 'PUT',
                                 body: formData,
                             });
@@ -177,7 +177,7 @@ const EditDriver = () => {
             
             console.log('Using driver ID for API:', driverId);
             
-            const response = await fetch(`/api/drivers/${driverId}`, {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers/${driverId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

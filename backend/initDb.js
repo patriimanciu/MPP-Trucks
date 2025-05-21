@@ -450,6 +450,7 @@ async function seedData() {
       'INSERT INTO users (email, password, first_name, last_name, role) VALUES ($1, $2, $3, $4, $5) RETURNING id',
       ['admin@example.com', adminPassword, 'Admin', 'User', 'admin']
     );
+    console.log('----------', adminPassword);
     const adminId = adminResult.rows[0].id;
     
     const userResult = await query(
@@ -463,6 +464,8 @@ async function seedData() {
       ['user2@example.com', user2Password, 'Regular', 'User', 'user']
     );
     const user2Id = user2Result.rows[0].id;
+    console.log('----------', user1Password);
+    console.log('----------', user2Password);
     
     console.log('Users created successfully');
     

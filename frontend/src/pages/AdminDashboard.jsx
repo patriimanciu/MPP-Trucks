@@ -17,7 +17,7 @@ const AdminDashboard = () => {
       setLoading(true);
       
       if (activeTab === 'logs') {
-        const response = await fetch('/api/users/all-logs', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/users/all-logs`, {
           headers: {
             ...getAuthHeaders(),
           },
@@ -28,7 +28,7 @@ const AdminDashboard = () => {
           setLogs(data);
         }
       } else if (activeTab === 'users') {
-        const response = await fetch('/api/users', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/users`, {
           headers: {
             ...getAuthHeaders(),
           },
@@ -62,7 +62,7 @@ const AdminDashboard = () => {
       
       setLoading(true);
       
-      const response = await fetch('/api/security/reset-monitoring', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/security/reset-monitoring`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

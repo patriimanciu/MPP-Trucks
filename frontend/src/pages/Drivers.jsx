@@ -20,7 +20,7 @@ const Drivers = () => {
   useEffect(() => {
     const checkServerStatus = async () => {
       try {
-        const response = await fetch('/api/ping', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/ping`, {
           headers: {
             ...getAuthHeaders()
           }}
@@ -37,7 +37,7 @@ const Drivers = () => {
             try {
               if (operation.type === 'UPDATE') {
                 console.log('Syncing UPDATE operation:', operation);
-                const response = await fetch(`http://localhost:5001/api/drivers/${operation.id}`, {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers/${operation.id}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json',
                     ...getAuthHeaders()
@@ -50,7 +50,7 @@ const Drivers = () => {
                 }
               } else if (operation.type === 'CREATE') {
                 console.log('Syncing CREATE operation:', operation);
-                const response = await fetch('http://localhost:5001/api/drivers', {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json',
                     ...getAuthHeaders()
@@ -63,7 +63,7 @@ const Drivers = () => {
                 }
               } else if (operation.type === 'DELETE') {
                 console.log('Syncing DELETE operation:', operation);
-                const response = await fetch(`http://localhost:5001/api/drivers/${operation.id}`, {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers/${operation.id}`, {
                   method: 'DELETE',
                 });
     

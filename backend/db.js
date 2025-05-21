@@ -20,7 +20,7 @@ async function initPool() {
       try {
         const { Pool } = await import('@neondatabase/serverless');
         pool = new Pool({
-          connectionString: process.env.DATABASE_URL || 'postgresql://driveruser:yourpassword@localhost:5432/driverdb'
+          connectionString: process.env.DATABASE_URL
         });
       } catch (error) {
         console.error('Failed to initialize Cloudflare DB connection:', error);
@@ -30,19 +30,14 @@ async function initPool() {
       // Standard Node.js environment
       const { Pool } = await import('pg');
       pool = new Pool({
-        user: process.env.DB_USER || 'driveruser',
-        host: process.env.DB_HOST || 'localhost',
-        database: process.env.DB_NAME || 'driverdb',
-        password: process.env.DB_PASSWORD || 'yourpassword',
-        port: parseInt(process.env.DB_PORT || '5432'),
-        ssl: process.env.NODE_ENV === 'production' ? 
-          { rejectUnauthorized: false } : false
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
       });
     }
     
     // Test connection
-    const testResult = await pool.query('SELECT NOW()');
-    console.log('Database connection successful:', testResult.rows[0]);
+    const testResult = await pool.query('SELECT current_database(), inet_server_addr();');
+    console.log('Connected to database:', testResult.rows[0]);
   } catch (error) {
     console.error('Database initialization failed:', error);
     throw error;

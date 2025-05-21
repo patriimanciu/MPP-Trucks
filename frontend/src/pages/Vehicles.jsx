@@ -43,7 +43,7 @@ const Vehicles = () => {
           });
         }
         
-        const url = `/api/vehicles${params.toString() ? '?' + params.toString() : ''}`;
+        const url = `${import.meta.env.VITE_API_URL}/vehicles${params.toString() ? '?' + params.toString() : ''}`;
         console.log("Fetching from URL:", url);
         console.log("Auth headers:", getAuthHeaders());
         

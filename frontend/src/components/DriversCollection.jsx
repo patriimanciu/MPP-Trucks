@@ -87,7 +87,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
           }
       
           try {
-            const response = await fetch('/api/drivers', {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers`, {
               headers: {
                 ...getAuthHeaders()
               }
@@ -194,7 +194,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
                 if (operation.type === 'CREATE') {
                   console.log('Syncing CREATE operation:', operation);
       
-                  const response = await fetch('/api/drivers', {
+                  const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(operation.payload),
@@ -215,7 +215,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
                 } else if (operation.type === 'DELETE') {
                   console.log('Syncing DELETE operation:', operation.id);
       
-                  const response = await fetch(`/api/drivers/${operation.id}`, {
+                  const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers${operation.id}`, {
                     method: 'DELETE',
                   });
       
@@ -292,7 +292,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         }
     
         try {
-          const response = await fetch(`/api/drivers/${driverId}`, {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers/${driverId}`, {
             method: 'DELETE',
             headers: {
               ...getAuthHeaders()

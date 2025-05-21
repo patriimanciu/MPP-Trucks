@@ -28,7 +28,7 @@ const App = ({ children }) => {
 
     const checkServerStatus = async () => {
       try {
-        const response = await fetch('/api/ping');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/ping`);
         setIsServerReachable(response.ok);
       } catch {
         setIsServerReachable(false);

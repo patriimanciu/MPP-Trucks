@@ -12,7 +12,7 @@ const FleetStatistics = () => {
     const fetchStatistics = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/statistics/fleet/by-brand');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/statistics/fleet/by-brand`);
         const data = await response.json();
         
         setStatistics(data.statistics);

@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: driverdb
+    environment:
+      POSTGRES_USER: driveruser
+      POSTGRES_PASSWORD: yourpassword
+      POSTGRES_DB: driverdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U driveruser -d driverdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_USER=driveruser
+      - DB_PASSWORD=yourpassword
+      - DB_HOST=db
+      - DB_NAME=driverdb
+      - DB_PORT=5432
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://neondb_owner:npg_OUNXCM30zoRr@ep-cool-scene-a2vi3mpz-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: >
+      sh -c "node initDb.js && npm start"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data: 

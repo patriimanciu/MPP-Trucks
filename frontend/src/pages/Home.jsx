@@ -31,7 +31,7 @@ const Home = () => {
     formData.append('video', selectedFile);
   
     try {
-      const response = await fetch('/api/videos/upload', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/videos/upload`, {
         method: 'POST',
         body: formData,
       });

@@ -15,7 +15,7 @@ const MonitoredUsers = () => {
   const fetchMonitoredUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/security/monitored-users', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/security/monitored-users`, {
         headers: {
           ...getAuthHeaders()
         }
@@ -37,7 +37,7 @@ const MonitoredUsers = () => {
   
   const updateUserStatus = async (id, status, notes) => {
     try {
-      const response = await fetch(`/api/security/monitored-users/${id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/security/monitored-users/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

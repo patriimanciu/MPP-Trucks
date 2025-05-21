@@ -16,7 +16,7 @@ const VehicleDetails = () => {
       try {
         setIsLoading(true);
         
-        const vehicleResponse = await fetch(`/api/vehicles/${id}`, {
+        const vehicleResponse = await fetch(`${import.meta.env.VITE_API_URL}/vehicles/${id}`, {
           headers: {
             ...getAuthHeaders()
           }
@@ -29,7 +29,7 @@ const VehicleDetails = () => {
         const vehicleData = await vehicleResponse.json();
         setVehicle(vehicleData);
         
-        const driversResponse = await fetch(`/api/vehicles/${id}/drivers`, {
+        const driversResponse = await fetch(`${import.meta.env.VITE_API_URL}/vehicles/${id}/drivers`, {
           headers: {
             ...getAuthHeaders()
           }

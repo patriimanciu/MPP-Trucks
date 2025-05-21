@@ -13,7 +13,7 @@ const AttackSimulator = ({ onSimulationComplete }) => {
       setLoading(true);
       console.log('Simulating attack with:', { actionType, count });
       
-      const response = await fetch('/api/security/simulate-attack', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/security/simulate-attack`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
