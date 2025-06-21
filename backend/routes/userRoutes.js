@@ -1,5 +1,5 @@
 import express from 'express';
-import User from '../models/User.js';
+import User, { verifyOTP } from '../models/User.js';
 import * as Log from '../models/Log.js';
 import { auth, authorize } from '../auth.js';
 import { query } from '../db.js';
@@ -20,12 +20,23 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login user
+// Login user (step 1: check credentials, send OTP)
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const authData = await User.login(email, password);
-    res.json(authData);
+    const result = await User.login(email, password);
+    res.json(result); // { requires2FA: true }
+  } catch (error) {
+    res.status(401).json({ error: error.message });
+  }
+});
+
+// Verify OTP (step 2: verify OTP, issue JWT)
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const result = await verifyOTP(email, otp);
+    res.json(result); // { token, user }
   } catch (error) {
     res.status(401).json({ error: error.message });
   }

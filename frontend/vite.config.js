@@ -13,7 +13,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://35.159.125.189:5001',
+      '/api': 'https://www.truckmanagement.cfd',
     },
   },
   build: {

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "proxy": "http://35.159.125.189:5001",
+  "proxy": "https://www.truckmanagement.cfd",
   "scripts": {
     "dev": "vite",
     "build": "vite build --mode production",

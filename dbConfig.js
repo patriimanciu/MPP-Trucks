@@ -1,6 +1,0 @@
-module.exports = {
-  connectionString: "postgresql://neondb_owner:npg_OUNXCM30zoRr@ep-cool-scene-a2vi3mpz-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require",
-  ssl: {
-    rejectUnauthorized: false
-  }
-};

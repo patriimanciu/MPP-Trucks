@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
   
-  // Login user
+  // Login user (step 1: check credentials, send OTP)
   const login = async (credentials) => {
     try {
       setLoading(true);
@@ -61,19 +61,19 @@ export const AuthProvider = ({ children }) => {
         },
         body: JSON.stringify(credentials),
       });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Login failed');
-      }
-      
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+      if (data.requires2FA) {
+        // Step 1 complete, OTP sent
+        return { requires2FA: true };
+      }
+      // If backend ever returns token directly (shouldn't in this flow)
       setCurrentUser(data.user);
       setToken(data.token);
-      
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      
       toast.success('Login successful!');
       return true;
     } catch (error) {
@@ -83,7 +83,36 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   };
-  
+
+  // Step 2: verify OTP
+  const verifyOtp = async (email, otp) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/users/verify-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, otp }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'OTP verification failed');
+      }
+      setCurrentUser(data.user);
+      setToken(data.token);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      toast.success('Login successful!');
+      return true;
+    } catch (error) {
+      toast.error(error.message);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Logout user
   const logout = () => {
     setCurrentUser(null);
@@ -108,6 +137,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     register,
     login,
+    verifyOtp,
     logout,
     isAdmin,
     getAuthHeaders,
