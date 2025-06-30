@@ -1,92 +1,99 @@
 import React, { useEffect, useState } from 'react';
 import Title from '../components/Title';
 import VehicleItem from '../components/VehicleItem';
+import { useAuth } from '../context/AuthContext'; 
 
 const Vehicles = () => {
+  const { getAuthHeaders } = useAuth();
   const [allVehicles, setAllVehicles] = useState([]);
-  const [displayedVehicles, setDisplayedVehicles] = useState([]);
-  const [itemsPerPage] = useState(8);
+  const [itemsPerPage] = useState(20); // Reasonable number per page
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [totalVehicles, setTotalVehicles] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  
   const [status, setStatus] = useState([]);
   const [location, setLocation] = useState([]);
-  const [sortField, setSortField] = useState('id');
+  const [sortField, setSortField] = useState('brand');
   const [sortOrder, setSortOrder] = useState('asc');
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-
+  
   useEffect(() => {
     const fetchVehicles = async () => {
       try {
-        const response = await fetch('/api/vehicles');
-        if (!response.ok) {
-          throw new Error('Failed to fetch vehicles');
+        setLoading(true);
+        console.log("Fetching vehicles page", page);
+        
+        const params = new URLSearchParams();
+        
+        params.append('page', page);
+        params.append('limit', itemsPerPage);
+        
+        params.append('sortBy', sortField);
+        params.append('sortOrder', sortOrder);
+        
+        if (status.length > 0) {
+          status.forEach(statusValue => {
+            params.append('status', statusValue);
+          });
         }
+        
+        if (location.length > 0) {
+          location.forEach(locationValue => {
+            params.append('location', locationValue);
+          });
+        }
+        
+        const url = `${import.meta.env.VITE_API_URL}/vehicles${params.toString() ? '?' + params.toString() : ''}`;
+        console.log("Fetching from URL:", url);
+        console.log("Auth headers:", getAuthHeaders());
+        
+        // Add auth headers to the fetch call
+        const response = await fetch(url, {
+          headers: {
+            ...getAuthHeaders()
+          }
+        });
+
+        if (!response.ok) {
+          console.error("API error:", response.status);
+          throw new Error(`API returned ${response.status}`);
+        }
+        
         const data = await response.json();
-        setAllVehicles(data.vehicles);
-        setDisplayedVehicles(data.vehicles.slice(0, itemsPerPage));
+        
+        // Get total count
+        const total = response.headers.get('X-Total-Count') || data.totalCount || 0;
+        setTotalVehicles(parseInt(total, 10));
+        setTotalPages(Math.ceil(parseInt(total, 10) / itemsPerPage));
+        
+        console.log("API response:", data);
+        
+        // Set vehicles for this page (don't accumulate)
+        if (Array.isArray(data)) {
+          setAllVehicles(data);
+        } else if (data.vehicles && Array.isArray(data.vehicles)) {
+          setAllVehicles(data.vehicles);
+        } else {
+          console.error("API didn't return an array:", data);
+          setAllVehicles([]);
+        }
       } catch (error) {
-        console.error('Error fetching vehicles:', error);
+        console.error("Error fetching vehicles:", error);
+        setAllVehicles([]);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchVehicles();
-  }, [itemsPerPage]);
-
+  }, [page, status, location, sortField, sortOrder, itemsPerPage, getAuthHeaders]);
+  
   useEffect(() => {
-    let filtered = [...allVehicles];
-
-    if (status.length > 0) {
-      filtered = filtered.filter((vehicle) => status.includes(vehicle.status));
-    }
-
-    if (location.length > 0) {
-      filtered = filtered.filter((vehicle) => location.includes(vehicle.location));
-    }
-
-    filtered.sort((a, b) => {
-      if (sortOrder === 'asc') {
-        return a[sortField] > b[sortField] ? 1 : -1;
-      } else {
-        return a[sortField] < b[sortField] ? 1 : -1;
-      }
-    });
-
-    setDisplayedVehicles(filtered.slice(0, itemsPerPage));
-  }, [status, location, sortField, sortOrder, allVehicles, itemsPerPage]);
-
-  const loadMoreVehicles = () => {
-    if (isLoadingMore) return;
-    setIsLoadingMore(true);
-
-    setTimeout(() => {
-      const nextVehicles = allVehicles.slice(0, itemsPerPage);
-      setDisplayedVehicles((prevVehicles) => [...prevVehicles, ...nextVehicles]);
-      setIsLoadingMore(false);
-    }, 500); 
-  };
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const target = entries[0];
-        if (target.isIntersecting && !isLoadingMore) {
-          loadMoreVehicles();
-        }
-      },
-      { threshold: 1.0 }
-    );
-
-    const sentinel = document.getElementById('scroll-sentinel');
-    if (sentinel) {
-      observer.observe(sentinel);
-    }
-
-    return () => {
-      if (sentinel) {
-        observer.unobserve(sentinel);
-      }
-    };
-  }, [isLoadingMore, allVehicles]);
+    setPage(1);
+  }, [status, location, sortField, sortOrder]);
 
   const toggleStatus = (e) => {
+    // Keep this code unchanged
     if (status.includes(e.target.value)) {
       setStatus((prev) => prev.filter((item) => item !== e.target.value));
     } else {
@@ -95,6 +102,7 @@ const Vehicles = () => {
   };
 
   const toggleLocation = (e) => {
+    // Keep this code unchanged
     if (location.includes(e.target.value)) {
       setLocation((prev) => prev.filter((item) => item !== e.target.value));
     } else {
@@ -102,10 +110,24 @@ const Vehicles = () => {
     }
   };
 
+  // Add pagination navigation
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
+  };
+
   return (
     <div className="my-10 pt-16">
       <div className="text-center py-4 text-3xl">
         <Title text={'Vehicles'} />
+      </div>
+      
+      {/* Total count display */}
+      <div className="text-center mb-4">
+        <span className="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
+          Total vehicles: {totalVehicles}
+        </span>
       </div>
 
       {/* Filters */}
@@ -161,28 +183,115 @@ const Vehicles = () => {
               <option value="year-asc">Sort by: Year (Oldest)</option>
             </select>
           </div>
-
-          {/* Rendering Vehicles */}
+          
+          {/* Rendering Vehicles - simplified without ref */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 gap-y-6 ml-4">
-            {displayedVehicles.map((item, index) => (
-              <VehicleItem
+            {allVehicles.map((item, index) => (
+              <VehicleItem 
                 key={index}
-                id={item.id}
-                image={item.image}
-                plate={item.plate}
-                brand={item.brand}
-                model={item.model}
-                status={item.status}
-                location={item.location}
-                assignedTo={item.assignedTo}
-                capacity={item.capacity}
-                year={item.year}
+                id={item._id || item.id}
+                image={Array.isArray(item.image) ? item.image : []} 
+                plate={item.plate || ''}
+                brand={item.brand || ''}
+                model={item.model || ''}
+                status={item.status || ''}
+                capacity={item.capacity || ''}
+                year={item.year || ''}
+                location={item.location || ''}
+                assignedTo={item.assignedTo || 'Unavailable'}
+                borderColor={item.borderColor}
               />
             ))}
           </div>
-
-          <div id="scroll-sentinel" className="h-10"></div>
-          {isLoadingMore && <div className="text-center">Loading more vehicles...</div>}
+          
+          {/* Loading indicator */}
+          {loading && (
+            <div className="flex justify-center mt-4 mb-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            </div>
+          )}
+          
+          {/* Add traditional pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-6">
+              <nav className="flex items-center">
+                <button 
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 1}
+                  className={`px-3 py-1 rounded-l border ${page === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
+                >
+                  Previous
+                </button>
+                
+                <div className="flex">
+                  {/* First page */}
+                  {page > 2 && (
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      className="px-3 py-1 border-t border-b bg-white hover:bg-gray-50"
+                    >
+                      1
+                    </button>
+                  )}
+                  
+                  {/* Ellipsis */}
+                  {page > 3 && (
+                    <span className="px-3 py-1 border-t border-b">…</span>
+                  )}
+                  
+                  {/* Previous page */}
+                  {page > 1 && (
+                    <button
+                      onClick={() => handlePageChange(page - 1)}
+                      className="px-3 py-1 border-t border-b bg-white hover:bg-gray-50"
+                    >
+                      {page - 1}
+                    </button>
+                  )}
+                  
+                  {/* Current page */}
+                  <button
+                    className="px-3 py-1 border-t border-b bg-blue-50 text-blue-600 font-medium"
+                  >
+                    {page}
+                  </button>
+                  
+                  {/* Next page */}
+                  {page < totalPages && (
+                    <button
+                      onClick={() => handlePageChange(page + 1)}
+                      className="px-3 py-1 border-t border-b bg-white hover:bg-gray-50"
+                    >
+                      {page + 1}
+                    </button>
+                  )}
+                  
+                  {/* Ellipsis */}
+                  {page < totalPages - 2 && (
+                    <span className="px-3 py-1 border-t border-b">…</span>
+                  )}
+                  
+                  {/* Last page */}
+                  {page < totalPages - 1 && (
+                    <button
+                      onClick={() => handlePageChange(totalPages)}
+                      className="px-3 py-1 border-t border-b bg-white hover:bg-gray-50"
+                    >
+                      {totalPages}
+                    </button>
+                  )}
+                </div>
+                
+                <button 
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page === totalPages}
+                  className={`px-3 py-1 rounded-r border ${page === totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
+                >
+                  Next
+                </button>
+              </nav>
+            </div>
+          )}
         </div>
       </div>
     </div>

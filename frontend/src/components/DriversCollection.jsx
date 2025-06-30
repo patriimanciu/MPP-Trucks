@@ -14,10 +14,12 @@ import {
   LinearScale,
   PointElement,
 } from 'chart.js';
+import { useAuth } from '../context/AuthContext'
 
 ChartJS.register(ArcElement, Tooltip, Legend, LineElement, CategoryScale, LinearScale, PointElement);
 
 const DriversCollection = ({ onAdd, onEdit }) => {
+    const {getAuthHeaders} = useAuth();
     const getStatusColor = (status) => {
         switch(status.toLowerCase()) {
           case 'free': return 'bg-green-100 text-green-800';
@@ -85,16 +87,25 @@ const DriversCollection = ({ onAdd, onEdit }) => {
           }
       
           try {
-            const response = await fetch('/api/drivers');
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers`, {
+              headers: {
+                ...getAuthHeaders()
+              }
+            });
             if (!response.ok) {
               throw new Error('Failed to fetch drivers');
             }
             const drivers = await response.json();
             console.log('Fetched drivers from API:', drivers);
-            setDrivers(drivers);
-            setAllDrivers(drivers);
+            if (Array.isArray(drivers)) {
+              setAllDrivers(drivers);
+              setDrivers(drivers);
+            } else {
+              console.error('Expected drivers array but got:', drivers);
+              setAllDrivers([]);
+            }
       
-            localStorage.setItem('drivers', JSON.stringify(drivers));
+            // localStorage.setItem('drivers', JSON.stringify(drivers));
           } catch (error) {
             console.error('Error fetching drivers:', error);
       
@@ -111,7 +122,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         };
       
         fetchDrivers();
-      }, [setDrivers]);
+      }, [setDrivers, getAuthHeaders]);
 
       useEffect(() => {
         const ws = new WebSocket(`ws://${window.location.hostname}:5001`);
@@ -183,7 +194,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
                 if (operation.type === 'CREATE') {
                   console.log('Syncing CREATE operation:', operation);
       
-                  const response = await fetch('/api/drivers', {
+                  const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(operation.payload),
@@ -198,13 +209,13 @@ const DriversCollection = ({ onAdd, onEdit }) => {
       
                   setAllDrivers((prevDrivers) => {
                     const updatedDrivers = [...prevDrivers, addedDriver];
-                    localStorage.setItem('drivers', JSON.stringify(updatedDrivers));
+                    // localStorage.setItem('drivers', JSON.stringify(updatedDrivers));
                     return updatedDrivers;
                   });
                 } else if (operation.type === 'DELETE') {
                   console.log('Syncing DELETE operation:', operation.id);
       
-                  const response = await fetch(`/api/drivers/${operation.id}`, {
+                  const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers${operation.id}`, {
                     method: 'DELETE',
                   });
       
@@ -214,7 +225,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
       
                   setAllDrivers((prevDrivers) => {
                     const updatedDrivers = prevDrivers.filter((driver) => driver._id !== operation.id);
-                    localStorage.setItem('drivers', JSON.stringify(updatedDrivers));
+                    // localStorage.setItem('drivers', JSON.stringify(updatedDrivers));
                     return updatedDrivers;
                   });
                 }
@@ -237,9 +248,9 @@ const DriversCollection = ({ onAdd, onEdit }) => {
     
     const indexOfLastDriver = currentPage * itemsPerPage;
     const indexOfFirstDriver = indexOfLastDriver - itemsPerPage;
-    const currentDrivers = allDrivers?.slice(indexOfFirstDriver, indexOfLastDriver) || [];
-    const totalPages = Math.ceil((allDrivers?.length || 0) / itemsPerPage);
-
+    const currentDrivers = Array.isArray(allDrivers) 
+        ? allDrivers.slice(indexOfFirstDriver, indexOfLastDriver) 
+        : [];const totalPages = Math.ceil((allDrivers?.length || 0) / itemsPerPage);
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
     };
@@ -281,8 +292,11 @@ const DriversCollection = ({ onAdd, onEdit }) => {
         }
     
         try {
-          const response = await fetch(`/api/drivers/${driverId}`, {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers/${driverId}`, {
             method: 'DELETE',
+            headers: {
+              ...getAuthHeaders()
+            }
           });
           if (!response.ok) {
             throw new Error('Failed to delete driver');
@@ -481,6 +495,7 @@ const DriversCollection = ({ onAdd, onEdit }) => {
                     <thead className="bg-gray-50">
                         <tr>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UserID</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date of Hiring</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -505,6 +520,9 @@ const DriversCollection = ({ onAdd, onEdit }) => {
                                             <div className="text-sm font-medium text-gray-900">{driver.name} {driver.surname}</div>
                                         </div>
                                     </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm text-gray-900">{driver.created_by || 'N/A'}</div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm text-gray-900">{driver.phone}</div>
@@ -542,40 +560,93 @@ const DriversCollection = ({ onAdd, onEdit }) => {
             
             {/* Page navigation */}
             {totalPages > 1 && (
-                <div className="flex justify-center mt-8">
-                    <nav className="flex items-center">
-                        <button 
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            className={`px-3 py-1 rounded-l border ${currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
-                        >
-                            Previous
-                        </button>
-                        
-                        <div className="flex">
-                            {[...Array(totalPages)].map((_, i) => (
+            <div className="flex justify-center mt-8">
+                <nav className="flex items-center">
+                    <button 
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-1 rounded-l border ${currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
+                    >
+                        Previous
+                    </button>
+                    
+                    <div className="flex">
+                        {(() => {
+                            const pageButtons = [];
+                            const visiblePages = 5;
+                            
+                            pageButtons.push(
                                 <button
-                                    key={i}
-                                    onClick={() => handlePageChange(i + 1)}
-                                    className={`px-3 py-1 border-t border-b ${currentPage === i + 1 ? 'bg-blue-50 text-blue-600 font-medium' : 'bg-white hover:bg-gray-50'}`}
+                                    key={1}
+                                    onClick={() => handlePageChange(1)}
+                                    className={`px-3 py-1 border-t border-b ${currentPage === 1 ? 'bg-blue-50 text-blue-600 font-medium' : 'bg-white hover:bg-gray-50'}`}
                                 >
-                                    {i + 1}
+                                    1
                                 </button>
-                            ))}
-                        </div>
-                        
-                        <button 
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                            className={`px-3 py-1 rounded-r border ${currentPage === totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
-                        >
-                            Next
-                        </button>
-                    </nav>
+                            );
+                            
+                            let startPage = Math.max(2, currentPage - Math.floor(visiblePages / 2));
+                            let endPage = Math.min(totalPages - 1, startPage + visiblePages - 1);
+                            
+                            if (endPage - startPage < visiblePages - 1) {
+                                startPage = Math.max(2, endPage - visiblePages + 1);
+                            }
+
+                            if (startPage > 2) {
+                                pageButtons.push(
+                                    <span key="ellipsis-1" className="px-3 py-1 border-t border-b">
+                                        …
+                                    </span>
+                                );
+                            }
+                            
+                            for (let i = startPage; i <= endPage; i++) {
+                                pageButtons.push(
+                                    <button
+                                        key={i}
+                                        onClick={() => handlePageChange(i)}
+                                        className={`px-3 py-1 border-t border-b ${currentPage === i ? 'bg-blue-50 text-blue-600 font-medium' : 'bg-white hover:bg-gray-50'}`}
+                                    >
+                                        {i}
+                                    </button>
+                                );
+                            }
+                            
+                            if (endPage < totalPages - 1) {
+                                pageButtons.push(
+                                    <span key="ellipsis-2" className="px-3 py-1 border-t border-b">
+                                        …
+                                    </span>
+                                );
+                            }
+                            
+                            if (totalPages > 1) {
+                                pageButtons.push(
+                                    <button
+                                        key={totalPages}
+                                        onClick={() => handlePageChange(totalPages)}
+                                        className={`px-3 py-1 border-t border-b ${currentPage === totalPages ? 'bg-blue-50 text-blue-600 font-medium' : 'bg-white hover:bg-gray-50'}`}
+                                    >
+                                        {totalPages}
+                                    </button>
+                                );
+                            }
+                            
+                            return pageButtons;
+                        })()}
+                    </div>
+                    
+                    <button 
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className={`px-3 py-1 rounded-r border ${currentPage === totalPages ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}`}
+                    >
+                        Next
+                    </button>
+                </nav>
+            </div>)}
                 </div>
-            )}
-        </div>
-    )
-}
+            )
+        }
 
 export default DriversCollection

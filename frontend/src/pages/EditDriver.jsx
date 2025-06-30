@@ -1,13 +1,13 @@
-import React, { useContext, useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 import { DriversContext } from '../context/DriversContext'
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 
 const EditDriver = () => {
     const navigate = useNavigate();
     const { id } = useParams();
-    const { setDrivers } = useContext(DriversContext);
-    
+    const { getAuthHeaders } = useAuth();
     const [driverToEdit, setDriverToEdit] = useState({
         name: '',
         surname: '',
@@ -25,25 +25,46 @@ const EditDriver = () => {
     useEffect(() => {
         const checkServerStatus = async () => {
             try {
-                const response = await fetch('/api/ping');
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/ping`, {
+                    headers: {
+                        ...getAuthHeaders()
+                    }
+                });
                 setIsServerReachable(response.ok);
             } catch {
                 setIsServerReachable(false);
             }
         };
         checkServerStatus();
-    }, []);
+    }, [getAuthHeaders]);
 
     useEffect(() => {
         console.log('Fetching driver with ID:', id);
         const fetchDriver = async () => {
           try {
-            const response = await fetch(`/api/drivers/${id}`);
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers/${id}`, {
+                headers: {
+                    ...getAuthHeaders()
+                },
+            });
             if (!response.ok) {
               throw new Error('Driver not found');
             }
             const driver = await response.json();
-            setDriverToEdit(driver);
+            console.log('Raw driver data:', driver);
+      
+            const formattedDriver = {
+                ...driver,
+                dateOfBirth: driver.dateOfBirth ? 
+                new Date(driver.dateOfBirth).toISOString().split('T')[0] : '',
+                dateOfHiring: driver.dateOfHiring ? 
+                new Date(driver.dateOfHiring).toISOString().split('T')[0] : '',
+                image: Array.isArray(driver.image) && driver.image.length > 0 ? 
+                driver.image[0] : driver.image || ''
+            };
+            
+            console.log('Formatted driver data:', formattedDriver);
+            setDriverToEdit(formattedDriver);
           } catch (error) {
             console.error('Error fetching driver:', error);
             toast.error('Driver not found');
@@ -52,7 +73,7 @@ const EditDriver = () => {
         };
       
         fetchDriver();
-      }, [id, navigate]);
+      }, [id, navigate, getAuthHeaders]);
 
     const validateDriver = (driver) => {
         let errors = {};
@@ -83,7 +104,7 @@ const EditDriver = () => {
                                 formData.append('file', operation.payload.imageFile);
                             }
     
-                            const response = await fetch(`/api/drivers/${operation.id}`, {
+                            const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers/${operation.id}`, {
                                 method: 'PUT',
                                 body: formData,
                             });
@@ -113,55 +134,67 @@ const EditDriver = () => {
         syncOperations();
     }, [isServerReachable]);
 
+    
     const handleSave = async () => {
         const validation = validateDriver(driverToEdit);
         if (Object.keys(validation).length > 0) {
             setErrors(validation);
             return;
         }
-    
-        const formData = new FormData();
-        formData.append('driver', JSON.stringify(driverToEdit));
-        if (driverToEdit.imageFile) {
-            formData.append('file', driverToEdit.imageFile);
-        }
-    
+
+        const apiDriver = {
+            ...driverToEdit,
+            image: Array.isArray(driverToEdit.image) ? 
+            driverToEdit.image : 
+            driverToEdit.image ? [driverToEdit.image] : []
+        };
+        
+        console.log('Sending data to API:', apiDriver);
+
         if (!navigator.onLine || !isServerReachable) {
             console.log('Offline or server unreachable. Queuing operation.');
-            const { ...driverWithoutFile } = driverToEdit;
+            const { ...driverWithoutFile } = apiDriver; 
             const queuedOperations = JSON.parse(localStorage.getItem('queuedOperations')) || [];
             queuedOperations.push({
                 type: 'UPDATE',
-                id: driverToEdit._id || driverToEdit.id,
+                id: apiDriver._id,
                 payload: driverWithoutFile,
             });
             localStorage.setItem('queuedOperations', JSON.stringify(queuedOperations));
-    
+
             toast.success('Changes saved locally. They will sync when back online.');
             navigate('/drivers');
             return;
         }
-    
+
         try {
             console.log('Online and server reachable. Proceeding with API call.');
-            const response = await fetch(`/api/drivers/${driverToEdit._id || driverToEdit.id}`, {
-                method: 'PUT',
-                body: formData,
-            });
-    
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to update driver');
+            
+            const driverId = parseInt(apiDriver._id.toString(), 10);
+            if (isNaN(driverId)) {
+                throw new Error('Invalid driver ID');
             }
-    
+            
+            console.log('Using driver ID for API:', driverId);
+            
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/drivers/${driverId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getAuthHeaders()
+                },
+                body: JSON.stringify(apiDriver),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                const errorMessage = errorData?.error || `${response.status} ${response.statusText}`;
+                throw new Error(`Failed to update driver: ${errorMessage}`);
+            }
+
             const updatedDriver = await response.json();
-    
-            setDrivers((prevDrivers) =>
-                prevDrivers.map((driver) =>
-                    driver._id === updatedDriver._id || driver.id === updatedDriver.id ? updatedDriver : driver
-                )
-            );
-    
+            console.log('Driver updated successfully:', updatedDriver);
+
             toast.success('Driver updated successfully');
             navigate('/drivers');
         } catch (error) {

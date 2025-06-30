@@ -1,0 +1,36 @@
+{
+    "family": "backend-task",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "256",
+    "memory": "512",
+    "executionRoleArn": "arn:aws:iam::920902432525:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "backend",
+            "image": "920902432525.dkr.ecr.eu-central-1.amazonaws.com/backend:latest",
+            "portMappings": [
+                {
+                    "containerPort": 5001,
+                    "hostPort": 5001,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "DATABASE_URL",
+                    "value": "postgresql://neondb_owner:npg_Byg4j9UrkwHl@ep-lucky-bird-a2z8pxey-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/backend",
+                    "awslogs-region": "eu-central-1",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            }
+        }
+    ]
+} 
